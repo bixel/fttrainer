@@ -57,6 +57,7 @@ print("""Cutting sweight {}
     get_events_statistics(data[~cut])['tracks'],
 ))
 
+# Build the tree, prepare input data, define xgb parameters
 print('Building model...', end='')
 sys.stdout.flush()
 
@@ -88,20 +89,30 @@ parameters = {
 }
 print(' done.')
 
+# run the actual training
 print('Start training...', end='')
 sys.stdout.flush()
 training_rounds = 200
-# bst = xgb.train(parameters,
-#                 xgb_training_data,
-#                 training_rounds,
-#                 evaluation_list)
-bst_cv = xgb.cv(parameters,
-                xgb_full_data,
+bst = xgb.train(parameters,
+                xgb_training_data,
                 training_rounds,
-                nfold=2,
-                show_progress=True,
+                evaluation_list)
+print(' done.')
+print('Start cross-validation...', end='')
+sys.stdout.flush()
+bst.cv = xgb.cv(parameters,
+                xgb_full_data,
+                nfold=30,
+                show_progress=False,
                 metrics={'auc', 'error'})
 print(' done.')
-last_auc = ufloat(bst_cv['test-auc-mean'].values[-1],
-                  bst_cv['test-auc-std'].values[-1])
-print('Last AUC: {}'.format(last_auc))
+
+# print some numbers
+max_ind = bst.cv['test-auc-mean'].values.argmax()
+last_auc = ufloat(bst.cv['test-auc-mean'].values[max_ind],
+                  bst.cv['test-auc-std'].values[max_ind])
+print('Max AUC: {} at {}'.format(last_auc, max_ind))
+
+print('Saving model to `models/ele_trained.xgb`...', end='')
+bst.save_model('models/ele_trained.xgb')
+print(' done.')
