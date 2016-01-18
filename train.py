@@ -3,8 +3,11 @@ from __future__ import division, print_function
 
 from root_pandas import read_root
 
-from rep.estimators import XGBoostClassifier
-from rep.metaml import FoldingClassifier
+import xgboost as xgb
+
+import numpy as np
+
+from uncertainties import ufloat
 
 import sys
 import os
@@ -56,20 +59,49 @@ print("""Cutting sweight {}
 
 print('Building model...', end='')
 sys.stdout.flush()
-xgb = XGBoostClassifier(colsample=1.0,
-                        eta=0.01,
-                        nthreads=4,
-                        n_estimators=200,
-                        subsample=0.3,
-                        max_depth=5)
 
-estimator = FoldingClassifier(xgb,
-                              n_folds=2,
-                              random_state=11,
-                              features=FEATURES)
+mask = np.random.rand(len(data)) < 0.7
+
+xgb_training_data = xgb.DMatrix(data[cut & mask].loc[:, FEATURES],
+                                label=data[cut & mask]['label'],
+                                weight=data[cut & mask]['N_sig_sw'],
+                                missing=-999.0)
+xgb_test_data = xgb.DMatrix(data[cut & ~mask].loc[:, FEATURES],
+                            label=data[cut & ~mask]['label'],
+                            weight=data[cut & ~mask]['N_sig_sw'],
+                            missing=-999.0)
+xgb_full_data = xgb.DMatrix(data[cut].loc[:, FEATURES],
+                            label=data[cut]['label'],
+                            weight=data[cut]['N_sig_sw'],
+                            missing=-999.0)
+evaluation_list = [
+    (xgb_test_data, 'eval'),
+    (xgb_training_data, 'train'),
+]
+parameters = {
+    'bst:max_depth': 5,
+    'bst:eta': 0.01,
+    'objective': 'binary:logistic',
+    'nthread': 4,
+    'eval_metric': 'auc',
+    'silent': 1,
+}
 print(' done.')
 
 print('Start training...', end='')
 sys.stdout.flush()
-estimator.fit(data, data['label'], data['N_sig_sw'])
+training_rounds = 200
+# bst = xgb.train(parameters,
+#                 xgb_training_data,
+#                 training_rounds,
+#                 evaluation_list)
+bst_cv = xgb.cv(parameters,
+                xgb_full_data,
+                training_rounds,
+                nfold=2,
+                show_progress=True,
+                metrics={'auc', 'error'})
 print(' done.')
+last_auc = ufloat(bst_cv['test-auc-mean'].values[-1],
+                  bst_cv['test-auc-std'].values[-1])
+print('Last AUC: {}'.format(last_auc))
