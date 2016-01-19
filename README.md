@@ -23,3 +23,18 @@ via
 ```
 $ pip install -r requirements.txt
 ```
+
+For the c++-part you need to compile xgboost yourself, which is well explained
+in the [projects
+documentation](http://xgboost.readthedocs.org/en/latest/build.html#build-the-shared-library).
+After compilation, store the xgboost-project inside a environment-variable
+such that g++ can find the libraries.
+```
+$ export XGB_REPO=/path/to/xgboost
+```
+
+Finally build the executable.
+```
+$ cmake .
+$ make
+```
