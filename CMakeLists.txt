@@ -10,13 +10,17 @@ set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -std=c++11)
 
 set(XGB $ENV{XGB_REPO})
 
-set(XGB_INCLUDE_PATH ${XGB}/wrapper/ ${XGB}/src/io/)
-set(XGB_LIBRARY_PATH ${XGB}/wrapper/)
+set(XGB_INCLUDE_PATH ${XGB}/wrapper ${XGB}/src/io)
+set(XGB_LIBRARY_PATH ${XGB}/wrapper)
+
+# not working yet
+# set(@rpath
+#     ${XGB_LIBRARY_PATH})
 
 #link_directories(${XGB_LIBRARY_PATH})
 add_library(xgboostwrapper SHARED IMPORTED)
 set_property(TARGET xgboostwrapper PROPERTY
-    IMPORTED_LOCATION ${XGB_LIBRARY_PATH}/libxgboostwrapper.so)
+    IMPORTED_LOCATION /${XGB_LIBRARY_PATH}/libxgboostwrapper.so)
 
 add_executable(tag tag.cxx)
 target_include_directories(tag PRIVATE ${XGB_INCLUDE_PATH})

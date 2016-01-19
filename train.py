@@ -75,6 +75,9 @@ xgb_full_data = xgb.DMatrix(data[cut].loc[:, FEATURES],
                             label=data[cut]['label'],
                             weight=data[cut]['N_sig_sw'],
                             missing=-999.0)
+
+# store the full dataset in xgboost binary format
+# TODO: Move this into cpp
 xgb_full_data.save_binary("data/nnet_ele.xmat")
 evaluation_list = [
     (xgb_test_data, 'eval'),
