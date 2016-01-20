@@ -14,10 +14,15 @@ int main(int argc, char* argv[]){
                                           false,
                                           false);
   std::vector<DataMatrix*> mat_vector{mat};
-  auto bst = xgboost::wrapper::Booster(mat_vector);
+  auto *bst = new xgboost::wrapper::Booster(mat_vector);
 
   // restore the model
-  bst.LoadModel("./models/ele_trained.xgb");
+  bst->LoadModel("./models/ele_trained.xgb");
+
+  unsigned long *len = 0;
+
+  // use the model to predict something
+  // auto *predictions = bst->Pred(*mat, 0x00, 0, len);
   return 0;
 }
 
