@@ -9,15 +9,9 @@ All properties of the training are so far taken from the
 [`old-tagging.ipynb`](https://github.com/tata-antares/tagging_LHCb/blob/master/old-tagging.ipynb),
 from aboves repository.
 
-The trained model will be stored within the `models/`-directory and the
-input-data will be stored in a binary xgboost-format in `build/data/`.
+The trained model will be stored within the `models/`-directory.
 
-After [building](#build-c), run `./build/tag` to load the data previously trained
-model within c++.
-
-## Dependencies & Building
-
-### Python
+## Dependencies & Installation
 
 First, [ROOT**5**](https://root.cern.ch/) is needed (there seem to be some
 conflicts with ROOT 6).
@@ -30,18 +24,17 @@ via
 $ pip install -r requirements.txt
 ```
 
-### <a name="build-c"></a>c++
-
 For the c++-part you need to compile xgboost yourself, which is well explained
 in the [projects
 documentation](http://xgboost.readthedocs.org/en/latest/build.html#build-the-shared-library).
 After compilation, store the xgboost-project inside a environment-variable
-so make can find the libraries and include directories.
+such that g++ can find the libraries.
 ```
 $ export XGB_REPO=/path/to/xgboost
 ```
 
 Finally build the executable.
 ```
+$ cmake .
 $ make
 ```
