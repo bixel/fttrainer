@@ -30,7 +30,7 @@ documentation](http://xgboost.readthedocs.org/en/latest/build.html#build-the-sha
 After compilation, store the xgboost-project inside a environment-variable
 such that g++ can find the libraries.
 ```
-$ export XGB_REPO=/path/to/xgboost
+$ export XGB=/path/to/xgboost
 ```
 
 Finally build the executable.

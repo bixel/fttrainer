@@ -4,22 +4,17 @@
 #include <cmath>
 #include <vector>
 #include <iostream>
-#include "io.h"
-#include "xgboost_wrapper.cpp"
+#include "xgboost/c_api.h"
 
 int main(int argc, char* argv[]){
   // TODO: read a root file here and build a xgboost compatible DMatrix
-  auto *mat = xgboost::io::LoadDataMatrix("./data/nnet_ele.xmat",
-                                          false,
-                                          false,
-                                          false);
-  std::vector<DataMatrix*> mat_vector{mat};
-  auto *bst = new xgboost::wrapper::Booster(mat_vector);
+  auto *mat = DMatrixHandle();
+  XGDMatrixCreateFromFile("../data/nnet_ele.xmat", 1, &mat);
 
-  // restore the model
-  bst->LoadModel("./models/ele_trained.xgb");
+  unsigned long num_rows;
+  XGDMatrixNumRow(mat, &num_rows);
 
-  unsigned long *len = 0;
+  std::cout << "File contains " << num_rows << " rows." << std::endl;
 
   // use the model to predict something
   // auto *predictions = bst->Pred(*mat, 0x00, 0, len);

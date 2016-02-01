@@ -8,16 +8,15 @@ set(CMAKE_CXX_COMPILER g++)
 set(CMAKE_C_COMPILER gcc)
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -std=c++11)
 
-set(XGB $ENV{XGB_REPO})
-
-set(XGB_INCLUDE_PATH ${XGB}/wrapper ${XGB}/src/io)
-set(XGB_LIBRARY_PATH ${XGB}/wrapper)
+set(XGB $ENV{XGB})
 
 #link_directories(${XGB_LIBRARY_PATH})
 add_library(xgboostwrapper SHARED IMPORTED)
 set_property(TARGET xgboostwrapper PROPERTY
-    IMPORTED_LOCATION /${XGB_LIBRARY_PATH}/libxgboostwrapper.so)
+    IMPORTED_LOCATION /${XGB}/lib/libxgboost.so)
 
 add_executable(tag tag.cxx)
-target_include_directories(tag PRIVATE ${XGB_INCLUDE_PATH})
+target_include_directories(tag PRIVATE
+    ${XGB}/include/
+    ${XGB}/dmlc-core/include/)
 target_link_libraries(tag xgboostwrapper)
