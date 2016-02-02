@@ -1,5 +1,7 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 2.8.5)
 project (fttrainer)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/build/)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
