@@ -25,11 +25,15 @@ int main(int argc, char* argv[]){
     << XGBoosterLoadModel(booster, "../models/ele_trained.xgb")
     << std::endl;
 
-  std::vector<const float*> predictions(num_rows);
-  XGBoosterPredict(booster, mat, 0, 0, &num_rows, &predictions[0]);
+  // handle to store length and predictions
+  unsigned long len;
+  const float *predictions;
 
-  for(auto *p : predictions){
-    std::cout << p << std::endl;
+  XGBoosterPredict(booster, mat, 0, 0, &len, &predictions);
+
+  for(unsigned long i=0; i<len; i++){
+    std::cout << *predictions << std::endl;
+    predictions++;
   }
 
   // use the model to predict something
