@@ -382,42 +382,42 @@ def get_events_statistics(data, id_column='event_id'):
 #     return Bdata_prepared
 # 
 # 
-# def compute_mistag(Bprobs, Bsign, Bweight, chosen, uniform=True, bins=None, label=""):
-#     """
-#     Check mistag calibration (plot mistag vs true mistag in bins)
-#     
-#     :param Bprobs: p(B+) probabilities, numpy.array of shape [n_samples]
-#     :param Bsign: numpy.array of shape [n_samples] with labels {-1, 1}
-#     :param Bweights: numpy.array of shape [n_samples]
-#     :param chosen: condition to select B events (B+ or B- only)
-#     :param uniform: bool, uniform bins or percentile in the other case
-#     :params bins: bins
-#     :param label: label on the plot
-#     
-#     """
-#     if uniform:
-#         bins = bins
-#     else:
-#         bins = numpy.percentile(numpy.minimum(Bprobs, 1 - Bprobs), bins)
-# 
-#     prob = Bprobs[chosen]
-#     sign = Bsign[chosen]
-#     weight = Bweight[chosen]
-#     p_mistag = numpy.minimum(prob, 1 - prob)
-#     tag = numpy.where(prob >= 0.5, 1, -1)
-#     is_correct = numpy.where(sign * tag > 0, 1, 0)
-#     
-#     bins_index = numpy.searchsorted(bins, p_mistag)
-#     right_tagged = numpy.bincount(bins_index, weights=is_correct * weight)
-#     wrong_tagged = numpy.bincount(bins_index, weights=(1 - is_correct) * weight)
-#     p_mistag_true = wrong_tagged / (right_tagged + wrong_tagged)
-#     
-#     bins = [0.] + list(bins) + [0.5]
-#     bins = numpy.array(bins)
-#     bins_centers = (bins[1:] + bins[:-1]) / 2
-#     bins_error = (bins[1:] - bins[:-1]) / 2
-#     p_mistag_true_error = numpy.sqrt(wrong_tagged * right_tagged) / (wrong_tagged + right_tagged)**1.5
-#     plt.errorbar(bins_centers, p_mistag_true, xerr=bins_error, yerr=p_mistag_true_error, fmt='.', label=label)
-#     plt.plot([0, 1], [0, 1], 'k--')
-#     plt.xlim(-0.05, 0.55), plt.ylim(-0.05, 0.55)
-#     plt.grid()
+def compute_mistag(Bprobs, Bsign, Bweight, chosen, uniform=True, bins=None, label=""):
+    """
+    Check mistag calibration (plot mistag vs true mistag in bins)
+
+    :param Bprobs: p(B+) probabilities, numpy.array of shape [n_samples]
+    :param Bsign: numpy.array of shape [n_samples] with labels {-1, 1}
+    :param Bweights: numpy.array of shape [n_samples]
+    :param chosen: condition to select B events (B+ or B- only)
+    :param uniform: bool, uniform bins or percentile in the other case
+    :params bins: bins
+    :param label: label on the plot
+
+    """
+    if uniform:
+        bins = bins
+    else:
+        bins = np.percentile(np.minimum(Bprobs, 1 - Bprobs), bins)
+
+    prob = Bprobs[chosen]
+    sign = Bsign[chosen]
+    weight = Bweight[chosen]
+    p_mistag = np.minimum(prob, 1 - prob)
+    tag = np.where(prob >= 0.5, 1, -1)
+    is_correct = np.where(sign * tag > 0, 1, 0)
+
+    bins_index = np.searchsorted(bins, p_mistag)
+    right_tagged = np.bincount(bins_index, weights=is_correct * weight)
+    wrong_tagged = np.bincount(bins_index, weights=(1 - is_correct) * weight)
+    p_mistag_true = wrong_tagged / (right_tagged + wrong_tagged)
+
+    bins = [0.] + list(bins) + [0.5]
+    bins = np.array(bins)
+    bins_centers = (bins[1:] + bins[:-1]) / 2
+    bins_error = (bins[1:] - bins[:-1]) / 2
+    p_mistag_true_error = np.sqrt(wrong_tagged * right_tagged) / (wrong_tagged + right_tagged)**1.5
+    plt.errorbar(bins_centers, p_mistag_true, xerr=bins_error, yerr=p_mistag_true_error, fmt='.', label=label)
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.xlim(-0.05, 0.55), plt.ylim(-0.05, 0.55)
+    plt.grid()
