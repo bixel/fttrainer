@@ -1,6 +1,8 @@
 *.pyc
 data/
 models/
+*.xgb
+*.root
 
 # ignore cmake files
 build/
