@@ -32,14 +32,9 @@ int main(int argc, char* argv[]){
   }
 
   // TODO: read a root file here and build a xgboost compatible DMatrix
-  DMatrixHandle mat;
+  DMatrixHandle data_mat,
+                cache_mat;
 
-  // ... and therefore transformed via e.g. CSC format
-  std::vector<unsigned int> column_pointer(data.size(), 0);
-  std::vector<unsigned long> indices(data.size());
-
-  // This cast to float probably is unneccesary overhead
-  // Maybe just use floats in the features vector?
   std::vector<float> data_(data.begin(), data.end());
 
   cout << "Data:\n";
@@ -47,26 +42,27 @@ int main(int argc, char* argv[]){
     cout << d << "\n";
   cout << endl;
 
-  // Maye use `boost::range_iterator` here?
-  unsigned c = 0;
-  for(auto& i : indices)
-    i = c++;
-
   // fill the vector(!) into a csc matrix (ouch!)
-  if(XGDMatrixCreateFromCSC(&indices[0],
-                            &column_pointer[0],
-                            &data_[0],
-                            2,
-                            data_.size(),
-                            &mat) != 0)
+  if(XGDMatrixCreateFromMat(&*data_.cbegin(),
+                            1,
+                            data.size(),
+                            0.5,
+                            &data_mat) != 0)
     cout << "Error creating DMatrix" << endl;
 
   unsigned long num_rows;
-  XGDMatrixNumRow(mat, &num_rows);
+  XGDMatrixNumRow(data_mat, &num_rows);
 
   std::cout << "File contains " << num_rows << " rows." << std::endl;
 
-  DMatrixHandle mat_array[] = {mat};
+
+  if(XGDMatrixCreateFromMat(&*std::vector<float>(2).cbegin(),
+                            1,
+                            2,
+                            0.5,
+                            &cache_mat) != 0)
+    cout << "Error creating DMatrix" << endl;
+  DMatrixHandle mat_array[] = {cache_mat};
 
   BoosterHandle booster;
   XGBoosterCreate(mat_array, 1, &booster);
@@ -78,7 +74,7 @@ int main(int argc, char* argv[]){
   unsigned long len;
   const float *predictions;
 
-  XGBoosterPredict(booster, mat, 0, 0, &len, &predictions);
+  XGBoosterPredict(booster, data_mat, 0, 0, &len, &predictions);
 
   for(unsigned long i=0; i<len; i++){
     std::cout << *predictions << std::endl;
