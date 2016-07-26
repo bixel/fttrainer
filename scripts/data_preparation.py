@@ -8,35 +8,41 @@ from tqdm import tqdm
 from itertools import chain
 
 
-def get_single_tagging_particles(dataframe_generator,
-                                 target_function,
-                                 chunksize,
-                                 n_entries=None,
-                                 branch_name='B_OS_Muon_PT'):
-    full_data = pd.DataFrame()
+def read_and_select(dataframe_generator,
+                    query,
+                    chunksize=None,
+                    max_rows=-1,
+                    n_entries=None):
+    total_length = 0
+    read_chunks = []
 
-    if n_entries:
-        total = n_entries/chunksize
+    if max_rows > 0:
+        total = max_rows
+    elif n_entries:
+        total = n_entries
     else:
-        total = None
+        total = 1
 
-    for chunk in tqdm(dataframe_generator,
-                      total=total):
-        # Define data target with target_function
-        chunk['target'] = target_function(chunk)
+    with tqdm(total=total) as pbar:
+        for chunk in dataframe_generator:
+            chunk.query(query, inplace=True)
 
-        # Create a groupby object (B_P should be unique) and only select max
-        # of given branch_name
-        group = chunk.groupby('B_P')
-        chunk = chunk.loc[group[branch_name].agg(np.argmax).astype('int')]
+            # append chunk to dataset
+            read_chunks.append(chunk)
+            total_length += len(chunk)
 
-        # append chunk to dataset
-        full_data = full_data.append(chunk.copy(deep=True))
+            pbar.update(len(chunk))
 
-    return full_data
+            if max_rows > 0 and total_length > max_rows:
+                print('Max rows reached.')
+                return pd.concat(read_chunks)
+
+    return pd.concat(read_chunks)
 
 
-def concat_df_chunks(filenames, chunksize, **kwargs):
-    return chain(
-        *(read_root(f, chunksize=chunksize, **kwargs) for f in filenames)
-    )
+def grouped_aggregate(dataframe, column='B_P', function=np.argmax):
+    # Create a groupby object (B_P should be unique) and only select max
+    # of given branch_name
+    group = dataframe.groupby(column)
+    dataframe = dataframe.loc[group[branch_name].agg(function).astype('int')]
+    return datafram
