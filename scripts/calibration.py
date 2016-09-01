@@ -1,7 +1,42 @@
 from sklearn.cross_validation import train_test_split
 from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 import numpy as np
+
+
+class PolynomialLogisticRegression:
+
+    def __init__(self, power, *args, **kwargs):
+        self.power = power
+        self.lr = LogisticRegression(*args, **kwargs)
+
+    def transform(self, X):
+        Xnew = []
+        for i in range(1, self.power+1):
+            Xnew.append(X**i)
+        Xnew = np.column_stack(Xnew)
+        return Xnew
+
+    def fit(self, X, y, sample_weight=None):
+        Xnew = self.transform(X)
+        self.lr.fit(Xnew, y, sample_weight)
+
+    def fit_transform(self, X, y=None, **fit_params):
+        Xnew = self.transform(X)
+        return self.lr.fit_transform(Xnew, y, **fit_params)
+
+    def predict(self, X):
+        Xnew = self.transform(X)
+        return self.lr.predict(Xnew)
+
+    def predict_proba(self, X):
+        Xnew = self.transform(X)
+        return self.lr.predict_proba(Xnew)
+
+    def score(self, X):
+        Xnew = self.transform(X)
+        return self.lr.score(Xnew)
 
 
 def bootstrap_calibrate_prob(labels, weights, probs, n_calibrations=30,
@@ -32,8 +67,8 @@ def bootstrap_calibrate_prob(labels, weights, probs, n_calibrations=30,
         iso_reg = IsotonicRegression(y_min=0, y_max=1, out_of_bounds='clip')
         if symmetrize:
             iso_reg.fit(np.r_[train_probs, 1-train_probs],
-                          np.r_[train_labels > 0, train_labels <= 0],
-                          np.r_[train_weights, train_weights])
+                        np.r_[train_labels > 0, train_labels <= 0],
+                        np.r_[train_weights, train_weights])
         else:
             iso_reg.fit(train_probs, train_labels, train_weights)
 
