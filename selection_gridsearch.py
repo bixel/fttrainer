@@ -7,11 +7,13 @@ import ROOT
 
 import matplotlib.pyplot as plt
 
-from sklearn.cross_validation import KFold
+from sklearn.cross_validation import KFold, train_test_split
 from sklearn.grid_search import RandomizedSearchCV
 from xgboost import XGBClassifier
 from scripts.metrics import tagging_power_score
 from uncertainties import ufloat
+
+from scripts.calibration import PolynomialLogisticRegression
 
 from itertools import islice
 from tqdm import tqdm
@@ -30,7 +32,7 @@ def get_event_number(df, weight_column='SigYield_sw'):
 class CutBasedXGBClassifier(XGBClassifier):
     def __init__(self, max_depth=3, learning_rate=0.1, n_estimators=100,
                  silent=True, objective="reg:linear",
-                 nthread=-1, gamma=0, min_child_weight=1, max_delta_step=0,
+                 nthread=1, gamma=0, min_child_weight=1, max_delta_step=0,
                  subsample=1, colsample_bytree=1, colsample_bylevel=1,
                  reg_alpha=0, reg_lambda=1, scale_pos_weight=1,
                  base_score=0.5, seed=0, missing=None,
@@ -59,40 +61,49 @@ class CutBasedXGBClassifier(XGBClassifier):
                                'PROBNNp', 'IPPUs', 'RecVertexIPs',
                                ]
         for cp in self.cut_parameters:
-            setattr(self, '{}_cut'.format(cp), locals()['{}_cut'.format(cp)])
-            setattr(self, '{}_column'.format(cp), locals()['{}_column'.format(cp)])
+            setattr(self,
+                    '{}_cut'.format(cp),
+                    locals()['{}_cut'.format(cp)])
+            setattr(self,
+                    '{}_column'.format(cp),
+                    locals()['{}_column'.format(cp)])
+        self.calibrator = PolynomialLogisticRegression(power=3,
+                                                       solver='lbfgs',
+                                                       n_jobs=nthread)
         self.mvaFeatures = mvaFeatures
         self.only_max_pt = only_max_pt
         self.event_identifier_column = event_identifier_column
         self.fit_status_ = True
-        super(CutBasedXGBClassifier, self).__init__(max_depth=max_depth, learning_rate=learning_rate,
-                                                    n_estimators=n_estimators, silent=silent, objective=objective,
-                                                    nthread=nthread, gamma=gamma, min_child_weight=min_child_weight,
-                                                    max_delta_step=max_delta_step,
-                                                    subsample=subsample, colsample_bytree=colsample_bytree,
-                                                    colsample_bylevel=colsample_bylevel,
-                                                    reg_alpha=reg_alpha, reg_lambda=reg_lambda,
-                                                    scale_pos_weight=scale_pos_weight,
-                                                    base_score=base_score, seed=seed, missing=None)
+        (super(CutBasedXGBClassifier, self)
+         .__init__(max_depth=max_depth, learning_rate=learning_rate,
+                   n_estimators=n_estimators,
+                   silent=silent, objective=objective,
+                   nthread=nthread, gamma=gamma,
+                   min_child_weight=min_child_weight,
+                   max_delta_step=max_delta_step,
+                   subsample=subsample, colsample_bytree=colsample_bytree,
+                   colsample_bylevel=colsample_bylevel,
+                   reg_alpha=reg_alpha, reg_lambda=reg_lambda,
+                   scale_pos_weight=scale_pos_weight,
+                   base_score=base_score, seed=seed, missing=None))
 
     def select(self, X, y=None):
         print('Applying selection')
         len_before = get_event_number(X)
-        selection = ((X[self.P_column] > self.P_cut)
-                     & (X[self.PT_column] > self.PT_cut)
-                     & (X[self.phiDistance_column] > self.phiDistance_cut)
-                     & (X[self.MuonPIDIsMuon_column] == self.MuonPIDIsMuon_cut)
-                     & (X[self.IsSignalDaughter_column] == self.IsSignalDaughter_cut)
-                     & (X[self.TRCHI2DOF_column] < self.TRCHI2DOF_cut)
-                     & (X[self.TRGHP_column] < self.TRGHP_cut)
-                     & (X[self.PROBNNmu_column] > self.PROBNNmu_cut)
-                     & (X[self.PROBNNpi_column] < self.PROBNNpi_cut)
-                     & (X[self.PROBNNe_column] < self.PROBNNe_cut)
-                     & (X[self.PROBNNk_column] < self.PROBNNk_cut)
-                     & (X[self.PROBNNp_column] < self.PROBNNp_cut)
-                     & (X[self.IPPUs_column] > self.IPPUs_cut)
-                     & (X[self.RecVertexIPs_column] > self.RecVertexIPs_cut)
-                    )
+        selection = ((X[self.P_column] > self.P_cut) &
+                     (X[self.PT_column] > self.PT_cut) &
+                     (X[self.phiDistance_column] > self.phiDistance_cut) &
+                     (X[self.MuonPIDIsMuon_column] == self.MuonPIDIsMuon_cut) &
+                     (X[self.IsSignalDaughter_column] == self.IsSignalDaughter_cut) &
+                     (X[self.TRCHI2DOF_column] < self.TRCHI2DOF_cut) &
+                     (X[self.TRGHP_column] < self.TRGHP_cut) &
+                     (X[self.PROBNNmu_column] > self.PROBNNmu_cut) &
+                     (X[self.PROBNNpi_column] < self.PROBNNpi_cut) &
+                     (X[self.PROBNNe_column] < self.PROBNNe_cut) &
+                     (X[self.PROBNNk_column] < self.PROBNNk_cut) &
+                     (X[self.PROBNNp_column] < self.PROBNNp_cut) &
+                     (X[self.IPPUs_column] > self.IPPUs_cut) &
+                     (X[self.RecVertexIPs_column] > self.RecVertexIPs_cut))
         X = X[selection]
         if y is not None:
             y = y[selection]
@@ -100,8 +111,8 @@ class CutBasedXGBClassifier(XGBClassifier):
         if self.only_max_pt:
             X.reset_index(drop=True, inplace=True)
             max_pt_indices = (X
-                    .groupby(self.event_identifier_column)[self.PT_column]
-                    .idxmax())
+                              .groupby(self.event_identifier_column)[self.PT_column]
+                              .idxmax())
             X = X.iloc[max_pt_indices]
             if y is not None:
                 y.reset_index(drop=True, inplace=True)
@@ -133,7 +144,7 @@ class CutBasedXGBClassifier(XGBClassifier):
     def set_params(self, **kwargs):
         for cp in self.cut_parameters:
             cutname = '{}_cut'.format(cp)
-            if  cutname in kwargs and kwargs[cutname] is not None:
+            if cutname in kwargs and kwargs[cutname] is not None:
                 setattr(self, cutname, kwargs.pop(cutname))
         for other_param in ['mvaFeatures',
                             'only_max_pt',
@@ -145,24 +156,29 @@ class CutBasedXGBClassifier(XGBClassifier):
 
     def fit(self, X, y, eval_set=None, **kwargs):
         if eval_set is not None:
-            eval_set = [self.select(X_, y_) for X_, y_ in eval_set]
-        X_, y_ = self.select(X, y)
-        del(X)
-        del(y)
-        return super(CutBasedXGBClassifier, self).fit(X_, y_,
-                                                      eval_set=eval_set,
-                                                      **kwargs)
+            raise "Passing an eval_set to xgb ist not yet implemented"
+        X, y = self.select(X, y)
+        if len(X) < 2:
+            return self
+        X_train, X_calib, y_train, y_calib = train_test_split(X, y, test_size=0.5)
+        super(CutBasedXGBClassifier, self).fit(X_train, y_train, **kwargs)
+        probas = super(CutBasedXGBClassifier, self).predict_proba(X_calib)[:, 1]
+        self.calibrator.fit(probas.reshape(-1, 1), y_calib)
+        return self
 
     def predict_proba(self, data, **kwargs):
         print('Predicting probas')
-        d_ = self.select(data)
-        del(data)
-        return (super(CutBasedXGBClassifier, self)
-                .predict_proba(d_, **kwargs))
+        data = self.select(data)
+        try:
+            uncalibrated = (super(CutBasedXGBClassifier, self)
+                            .predict_proba(data, **kwargs))
+            return self.calibrator.predict_proba(uncalibrated[:, 1])
+        except:
+            return np.array([[0.5, 0.5]])
 
     def score(self, X, y, sample_weight=None):
         print('Calculating tagging power')
-        probas = self.predict_proba(X)[:,1]
+        probas = self.predict_proba(X)[:, 1]
         del(X)
         sc = tagging_power_score(probas, efficiency=self.efficiency_,
                                  sample_weight=sample_weight)
@@ -175,8 +191,8 @@ class SelectionKFold(KFold):
         self.unique_events = self.event_ids.unique()
         self.raw_indices = np.arange(len(y))
         (super(SelectionKFold, self)
-                .__init__(len(self.unique_events), n_folds=n_folds,
-                          shuffle=shuffle, random_state=random_state))
+         .__init__(len(self.unique_events), n_folds=n_folds,
+                   shuffle=shuffle, random_state=random_state))
 
     def __iter__(self):
         for train_ind, test_ind in super(SelectionKFold, self).__iter__():
@@ -187,6 +203,7 @@ class SelectionKFold(KFold):
                    self.raw_indices[(self.event_ids
                                     .isin(self.unique_events[test_ind])
                                     .values)])
+
 
 def setup_args():
     parser = argparse.ArgumentParser()
@@ -206,7 +223,6 @@ def main():
     plt.rcParams['figure.figsize'] = (10, 10)
     plt.rcParams['font.size'] = 14
 
-
     # just define some keyword arguments for read_root in a separate dict
     chunksize = 5000
     data_kwargs = dict(
@@ -217,7 +233,7 @@ def main():
                  'SigYield_sw',
                  'runNumber',
                  'eventNumber',
-                ],
+                 ],
         chunksize=chunksize,  # this will create a generator, yielding subsets
                               # with 'chunksize' of the data
         where='(B_LOKI_MASS_JpsiConstr_NoPVConstr>0)',  # a ROOT where
@@ -278,31 +294,25 @@ def main():
     ]]
 
     skf = SelectionKFold(df, n_folds=args.n_folds)
-    cbxgb = CutBasedXGBClassifier(mvaFeatures=classic_MVA_features,
-                                  max_depth=5,
-                                  n_estimators=300,
-                                  seed=1)
 
     grid_searcher = RandomizedSearchCV(
-            CutBasedXGBClassifier(nthread=args.xgboost_jobs,
-                                  mvaFeatures=classic_MVA_features,
-                                  n_estimators=300),
-            {
-                'P_cut': np.linspace(2, 5, 10),
-                'PT_cut': np.linspace(0, 2, 10),
-                'phiDistance_cut': np.linspace(0, 0.5, 10),
-                'MuonPIDIsMuon_cut': [0, 1],
-                'TRGHP_cut': np.linspace(0, 0.6, 10),
-                'IPPUs_cut': np.linspace(1, 4, 10),
-                'n_estimators': [200, 300, 400],
-            },
-            n_iter=args.iter,
-            error_score=0,
-            verbose=1,
-            cv=skf,
-            pre_dispatch='n_jobs',
-            n_jobs=args.cv_jobs,
-            refit=False)
+        CutBasedXGBClassifier(nthread=args.xgboost_jobs,
+                              mvaFeatures=classic_MVA_features,
+                              n_estimators=300),
+        {
+            'P_cut': np.linspace(2, 5, 31),
+            'PT_cut': np.linspace(0, 3, 31),
+            'phiDistance_cut': np.linspace(0, 0.5, 11),
+            'TRGHP_cut': np.linspace(0, 0.6, 11),
+            'IPPUs_cut': np.linspace(1, 4, 31),
+        },
+        n_iter=args.iter,
+        error_score=0,
+        verbose=1,
+        cv=skf,
+        pre_dispatch='n_jobs',
+        n_jobs=args.cv_jobs,
+        refit=False)
 
     grid_searcher.fit(df, df.target)
     best_index = np.nanargmax([sc[1] for sc in grid_searcher.grid_scores_])
@@ -311,15 +321,14 @@ def main():
           .format(100 * ufloat(np.mean(best_score[2]),
                   np.std(best_score[2])),
                   best_score[0]))
-    best_params = best_score[0]
     with open('search-{:%Y%m%d-%H%M%S}.json'
               .format(datetime.datetime.now()), 'w') as f:
         json.dump({'settings': vars(args),
                    'scores': [{'parameters': nt.parameters,
                                'mean_validation_score': nt.mean_validation_score,
                                'cv_validation_scores': nt.cv_validation_scores.tolist(),
-                              } for nt in grid_searcher.grid_scores_],
-                  }, f, indent=4)
+                               } for nt in grid_searcher.grid_scores_],
+                   }, f, indent=4)
 
 
 if __name__ == '__main__':
