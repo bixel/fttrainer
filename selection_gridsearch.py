@@ -1,9 +1,14 @@
+#! /usr/bin/env python
+
 from __future__ import print_function
 
 import numpy as np
 import pandas as pd
-from root_pandas import read_root
+
 import ROOT
+# disable cmd line parsing before other ROOT deps are loaded
+ROOT.PyConfig.IgnoreCommandLineOptions = True
+from root_pandas import read_root
 
 import matplotlib.pyplot as plt
 
@@ -14,12 +19,15 @@ from scripts.metrics import tagging_power_score
 from uncertainties import ufloat
 
 from scripts.calibration import PolynomialLogisticRegression
+from scripts.data_preparation import NSplit
 
-from itertools import islice
+from collections import OrderedDict
+from itertools import islice, product
 from tqdm import tqdm
 import argparse
 import datetime
 import json
+from os import path, mkdir
 
 
 def get_event_number(df, weight_column='SigYield_sw'):
@@ -54,6 +62,7 @@ class CutBasedXGBClassifier(XGBClassifier):
                  PROBNNk_column='tp_PROBNNk', PROBNNk_cut=0.8,
                  PROBNNp_column='tp_PROBNNp', PROBNNp_cut=0.8,
                  IPPUs_column='tp_IPPU', IPPUs_cut=3,
+                 polynomial_pow=3,
                  ):
         self.cut_parameters = ['P', 'PT', 'phiDistance', 'MuonPIDIsMuon',
                                'IsSignalDaughter', 'TRCHI2DOF', 'TRGHP',
@@ -67,13 +76,13 @@ class CutBasedXGBClassifier(XGBClassifier):
             setattr(self,
                     '{}_column'.format(cp),
                     locals()['{}_column'.format(cp)])
-        self.calibrator = PolynomialLogisticRegression(power=3,
+        self.calibrator = PolynomialLogisticRegression(power=polynomial_pow,
                                                        solver='lbfgs',
                                                        n_jobs=nthread)
         self.mvaFeatures = mvaFeatures
         self.only_max_pt = only_max_pt
         self.event_identifier_column = event_identifier_column
-        self.fit_status_ = True
+        self.fit_successful = False
         (super(CutBasedXGBClassifier, self)
          .__init__(max_depth=max_depth, learning_rate=learning_rate,
                    n_estimators=n_estimators,
@@ -88,7 +97,6 @@ class CutBasedXGBClassifier(XGBClassifier):
                    base_score=base_score, seed=seed, missing=None))
 
     def select(self, X, y=None):
-        print('Applying selection')
         len_before = get_event_number(X)
         selection = ((X[self.P_column] > self.P_cut) &
                      (X[self.PT_column] > self.PT_cut) &
@@ -154,20 +162,23 @@ class CutBasedXGBClassifier(XGBClassifier):
         super(CutBasedXGBClassifier, self).set_params(**kwargs)
         return self
 
-    def fit(self, X, y, eval_set=None, **kwargs):
+    def fit(self, X, y, X_calib, y_calib, eval_set=None, **kwargs):
         if eval_set is not None:
             raise "Passing an eval_set to xgb ist not yet implemented"
         X, y = self.select(X, y)
         if len(X) < 2:
             return self
-        X_train, X_calib, y_train, y_calib = train_test_split(X, y, test_size=0.5)
-        super(CutBasedXGBClassifier, self).fit(X_train, y_train, **kwargs)
+        if X_calib is None or y_calib is None:
+            X, X_calib, y, y_calib = train_test_split(X, y, test_size=0.5)
+        else:
+            X_calib, y_calib = self.select(X_calib, y_calib)
+        super(CutBasedXGBClassifier, self).fit(X, y, **kwargs)
         probas = super(CutBasedXGBClassifier, self).predict_proba(X_calib)[:, 1]
         self.calibrator.fit(probas.reshape(-1, 1), y_calib)
+        self.fit_successful = True
         return self
 
     def predict_proba(self, data, **kwargs):
-        print('Predicting probas')
         data = self.select(data)
         try:
             uncalibrated = (super(CutBasedXGBClassifier, self)
@@ -177,32 +188,10 @@ class CutBasedXGBClassifier(XGBClassifier):
             return np.array([[0.5, 0.5]])
 
     def score(self, X, y, sample_weight=None):
-        print('Calculating tagging power')
         probas = self.predict_proba(X)[:, 1]
-        del(X)
         sc = tagging_power_score(probas, efficiency=self.efficiency_,
                                  sample_weight=sample_weight)
         return sc
-
-
-class SelectionKFold(KFold):
-    def __init__(self, y, n_folds=3, shuffle=False, random_state=None):
-        self.event_ids = y.event_id
-        self.unique_events = self.event_ids.unique()
-        self.raw_indices = np.arange(len(y))
-        (super(SelectionKFold, self)
-         .__init__(len(self.unique_events), n_folds=n_folds,
-                   shuffle=shuffle, random_state=random_state))
-
-    def __iter__(self):
-        for train_ind, test_ind in super(SelectionKFold, self).__iter__():
-            print('Yielding split')
-            yield (self.raw_indices[(self.event_ids
-                                    .isin(self.unique_events[train_ind])
-                                    .values)],
-                   self.raw_indices[(self.event_ids
-                                    .isin(self.unique_events[test_ind])
-                                    .values)])
 
 
 def setup_args():
@@ -212,6 +201,7 @@ def setup_args():
     parser.add_argument('-x', '--xgboost-jobs', type=int, default=1)
     parser.add_argument('-c', '--cv-jobs', type=int, default=1)
     parser.add_argument('-i', '--iter', type=int, default=100)
+    parser.add_argument('-y', '--year', type=int, default=2011)
     return parser.parse_args()
 
 
@@ -245,11 +235,12 @@ def main():
     )
 
     data_dir = '/home/kheinicke/tank/flavourtagging/'
+    year = args.year
     filenames = [
-        data_dir + 'Bu2JpsiK_mu-k-e-TrainingTuple_2011_MD_sweighted_kheinick.root',
-        data_dir + 'Bu2JpsiK_mu-k-e-TrainingTuple_2011_MU_sweighted_kheinick.root',
-        data_dir + 'Bu2JpsiK_mu-k-e-TrainingTuple_2012_MD_sweighted_kheinick.root',
-        data_dir + 'Bu2JpsiK_mu-k-e-TrainingTuple_2012_MU_sweighted_kheinick.root',
+        data_dir + 'Bu2JpsiK_mu-k-e-TrainingTuple_' + str(year) + '_MD_sweighted_kheinick.root',
+        data_dir + 'Bu2JpsiK_mu-k-e-TrainingTuple_' + str(year) + '_MU_sweighted_kheinick.root',
+        data_dir + 'Bu2JpsiK_mu-k-e-TrainingTuple_' + str(year + 1) + '_MD_sweighted_kheinick.root',
+        data_dir + 'Bu2JpsiK_mu-k-e-TrainingTuple_' + str(year + 1) + '_MU_sweighted_kheinick.root',
     ]
     chunksize = 5000
 
@@ -267,6 +258,7 @@ def main():
         total = n_entries / chunksize
     else:
         total = args.slices
+    print('Reading {} chunks of {}-data'.format(total, year))
     df = pd.concat([df for df in tqdm(
         islice(read_root(filenames, **data_kwargs), args.slices),
         total=total)
@@ -293,42 +285,60 @@ def main():
         'IPs',
     ]]
 
-    skf = SelectionKFold(df, n_folds=args.n_folds)
+    # instead of using the sklearn randomized gridsearch, implement one that
+    # handles 3-fold validation
+    parameter_grid = OrderedDict([
+            ('P_cut', np.linspace(2, 5, 31)),
+            ('PT_cut', np.linspace(0, 3, 31)),
+            ('phiDistance_cut', np.linspace(0, 0.5, 11)),
+            ('TRGHP_cut', np.linspace(0, 0.6, 11)),
+            ('IPPUs_cut', np.linspace(1, 4, 31)),
+        ])
 
-    grid_searcher = RandomizedSearchCV(
-        CutBasedXGBClassifier(nthread=args.xgboost_jobs,
-                              mvaFeatures=classic_MVA_features,
-                              n_estimators=300),
-        {
-            'P_cut': np.linspace(2, 5, 31),
-            'PT_cut': np.linspace(0, 3, 31),
-            'phiDistance_cut': np.linspace(0, 0.5, 11),
-            'TRGHP_cut': np.linspace(0, 0.6, 11),
-            'IPPUs_cut': np.linspace(1, 4, 31),
-        },
-        n_iter=args.iter,
-        error_score=0,
-        verbose=1,
-        cv=skf,
-        pre_dispatch='n_jobs',
-        n_jobs=args.cv_jobs,
-        refit=False)
+    # produce all possible grid points
+    grid = []
+    for cut_values in product(*parameter_grid.values()):
+        grid.append({p: v for p, v in zip(parameter_grid.keys(), cut_values)})
+    np.random.shuffle(grid)
 
-    grid_searcher.fit(df, df.target)
-    best_index = np.nanargmax([sc[1] for sc in grid_searcher.grid_scores_])
-    best_score = grid_searcher.grid_scores_[best_index]
+    # iterate the grid points
+    scores = []
+    print('Starting grid search')
+    for classifier_args in tqdm(grid[:args.iter]):
+        # yield 3-fold split for this grid point
+        df_sets = [df.iloc[indices] for indices in NSplit(df)]
+
+        cv_scores = []
+        for i in range(3):
+            df1, df2, df3 = df_sets[i % 3], df_sets[(i + 1) % 3], df_sets[(i + 2) % 3]
+            model = CutBasedXGBClassifier(nthread=args.xgboost_jobs,
+                                          mvaFeatures=classic_MVA_features,
+                                          n_estimators=300,
+                                          **classifier_args)
+            model.fit(df1, df1.target,
+                      df2, df2.target)
+            if model.fit_successful:
+                cv_scores.append(model.score(df3, df3.target))
+            else:
+                cv_scores.append(0)
+
+        scores.append((np.mean(cv_scores), cv_scores, classifier_args))
+
+    scores = sorted(scores, key=lambda s: s[0])
     print('tagging power {}% with params\n{}'
-          .format(100 * ufloat(np.mean(best_score[2]),
-                  np.std(best_score[2])),
-                  best_score[0]))
-    with open('search-{:%Y%m%d-%H%M%S}.json'
-              .format(datetime.datetime.now()), 'w') as f:
+          .format(100 * ufloat(scores[0][0], np.std(scores[0][1])),
+                  scores[0][2]))
+    if not path.isdir('build/'):
+        mkdir('build/')
+        print('build/ directory created')
+    output_filename = ('build/search-{:%Y%m%d-%H%M%S}.json'
+                       .format(datetime.datetime.now()))
+    with open(output_filename, 'w') as f:
         json.dump({'settings': vars(args),
-                   'scores': [{'parameters': nt.parameters,
-                               'mean_validation_score': nt.mean_validation_score,
-                               'cv_validation_scores': nt.cv_validation_scores.tolist(),
-                               } for nt in grid_searcher.grid_scores_],
+                   'scores': scores,
                    }, f, indent=4)
+        print('grid search results have been written to {}'
+              .format(output_filename))
 
 
 if __name__ == '__main__':
