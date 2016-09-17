@@ -288,11 +288,13 @@ def main():
     # instead of using the sklearn randomized gridsearch, implement one that
     # handles 3-fold validation
     parameter_grid = OrderedDict([
-            ('P_cut', np.linspace(2, 5, 31)),
-            ('PT_cut', np.linspace(0, 3, 31)),
-            ('phiDistance_cut', np.linspace(0, 0.5, 11)),
-            ('TRGHP_cut', np.linspace(0, 0.6, 11)),
-            ('IPPUs_cut', np.linspace(1, 4, 31)),
+            ('P_cut', np.linspace(1, 5, 21)),
+            ('PT_cut', np.linspace(0, 3, 16)),
+            ('phiDistance_cut', np.linspace(0, 0.5, 6)),
+            ('TRGHP_cut', np.linspace(0, 0.6, 6)),
+            ('IPPUs_cut', np.linspace(1, 4, 16)),
+            ('TRCHI2DOF_cut', np.linspace(2, 5, 6)),
+            ('PROBNNmu_cut', np.linspace(0.0, 0.6, 6)),
         ])
 
     # produce all possible grid points
@@ -324,7 +326,7 @@ def main():
 
         scores.append((np.mean(cv_scores), cv_scores, classifier_args))
 
-    scores = sorted(scores, key=lambda s: s[0])
+    scores = sorted(scores, key=lambda s: s[0], reverse=True)
     print('tagging power {}% with params\n{}'
           .format(100 * ufloat(scores[0][0], np.std(scores[0][1])),
                   scores[0][2]))
@@ -336,6 +338,7 @@ def main():
     with open(output_filename, 'w') as f:
         json.dump({'settings': vars(args),
                    'scores': scores,
+                   'parameter-grid': {k: list(v) for k, v in parameter_grid.items()},
                    }, f, indent=4)
         print('grid search results have been written to {}'
               .format(output_filename))
