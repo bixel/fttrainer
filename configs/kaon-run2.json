@@ -1,0 +1,70 @@
+{
+    "filepath": "/home/kheinicke/tank/flavourtagging/",
+    "files": [
+        "Bu2JpsiK_mu-k-e-TrainingTuple_2015_MD_sweighted_kheinick.root",
+        "Bu2JpsiK_mu-k-e-TrainingTuple_2015_MU_sweighted_kheinick.root",
+        "Bu2JpsiK_mu-k-e-TrainingTuple_2016_MD_sweighted_kheinick.root",
+        "Bu2JpsiK_mu-k-e-TrainingTuple_2016_MU_sweighted_kheinick.root"
+    ],
+    "tagging_particle_prefix": "B_OS_Kaon",
+    "invert_target": true,
+    "pandas_kwargs": {
+        "key": "DecayTree",
+        "columns": [
+            "B_OS_Kaon*",
+            "B_ID",
+            "B_PT",
+            "runNumber",
+            "eventNumber",
+            "SigYield_sw"
+        ],
+        "chunksize": 5000
+    },
+    "mva_features": [
+        "mult",
+        "partP",
+        "partPt",
+        "nnkrec",
+        "ptB",
+        "IPs",
+        "partlcs",
+        "PIDNNk",
+        "PIDNNpi",
+        "PIDNNp",
+        "ghostProb",
+        "IPPU"
+    ],
+    "selections": [
+        "partP > 2.0",
+        "partPt > 0.7",
+        "TRTYPE == 3",
+        "partlcs < 3",
+        "minPhiDistance > 0.005",
+        "MuonPIDIsMuon == 0",
+        "ghostProb < 0.35",
+        "PROBNNmu < 0.8",
+        "PROBNNe < 0.8",
+        "PIDNNpi < 0.8",
+        "PIDNNk > 0.25",
+        "PIDNNp < 0.8",
+        "PROBNNk_PROBNNp > 0.0",
+        "PROBNNk_PROBNNpi > -0.6",
+        "PIDK != 0",
+        "PIDK != -1000",
+        "IPPU > 6.0",
+        "IPs > 4.0",
+        "RecVertexIP < 1.6",
+        "RecVertexIPErr != 0",
+        "IsSignalDaughter == 0",
+        "ID != 13",
+        "ID != -13"
+    ],
+    "sorting_feature": "tp_partPt",
+    "n_cv": 10,
+    "xgb_kwargs": {
+        "max_depth": 4,
+        "learning_rate": 0.01,
+        "n_estimators": 500
+    },
+    "n_jobs": 12
+}
