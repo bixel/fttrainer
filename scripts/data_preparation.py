@@ -54,3 +54,10 @@ class NSplit(object):
     def __iter__(self):
         for index_set in self.raw_index_sets:
             yield self.raw_indices[self.df.event_id.isin(index_set).values]
+
+
+def get_event_number(df, weight_column='SigYield_sw'):
+    """ Use weighted sums for multi-particle events
+    """
+    # max, min, mean, first should give the same values here
+    return np.sum(df.groupby('event_id')[weight_column].first())
