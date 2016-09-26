@@ -6,6 +6,8 @@ from __future__ import print_function, division
 import numpy as np
 import pandas as pd
 
+from sklearn.metrics import roc_curve
+
 import ROOT
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 from root_pandas import read_root
@@ -38,6 +40,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config-file', type=str, default=None)
     parser.add_argument('-m', '--max-slices', type=int, default=None)
+    parser.add_argument('-p', '--plot', type=str, default=None,
+                        help='Create a plot of the average ROC curve and the 1'
+                             'sigma area around the curve.')
     return parser.parse_args()
 
 
@@ -131,6 +136,7 @@ def main():
 
     bootstrap_scores = []
     bootstrap_d2s = []
+    bootstrap_roc_curves = []
     nfold = config['n_cv']
     print('Starting bootstrapping.')
     pbar = tqdm(total=nfold * 3)
@@ -165,12 +171,52 @@ def main():
             score = tagging_power_score(calib_probas,
                                         efficiency=efficiency,
                                         sample_weight=df3.SigYield_sw)
+            if args.plot is not None:
+                fpr, tpr = roc_curve(df3.target, probas,
+                                     sample_weight=df3.SigYield_sw)[:2]
+                bootstrap_roc_curves.append([fpr, tpr])
+
             bootstrap_scores.append(score)
             bootstrap_d2s.append(d2_score(calib_probas,
                                           sample_weight=df3.SigYield_sw))
             pbar.update(1)
 
     pbar.close()
+    if args.plot is not None:
+        print('Plotting ROC curves...', end=' ')
+        curve_points = np.array(bootstrap_roc_curves)
+
+        # hacky test for correct roc curve shapes
+        min_roc_shape = np.min([len(a[0]) for a in curve_points])
+        fprs, tprs = [], []
+        for fpr, tpr in curve_points:
+            fprs.append(fpr[:min_roc_shape])
+            tprs.append(tpr[:min_roc_shape])
+        fprs = np.array(fprs)
+        tprs = np.array(tprs)
+        plt.style.use('ggplot')
+        plt.rcParams['figure.figsize'] = (6, 6)
+        plt.rcParams['font.size'] = 12
+        plt.plot([0, 1], '--', label='random')
+        plt.plot(fprs.mean(axis=0), tprs.mean(axis=0), label='Mean ROC curve')
+        plt.fill_between(fprs.mean(axis=0),
+                         tprs.mean(axis=0) - tprs.std(axis=0),
+                         tprs.mean(axis=0) + tprs.std(axis=0),
+                         label=r'$\pm 1 \sigma$ area',
+                         alpha=0.4)
+        plt.xlim(-0.05, 1.05)
+        plt.ylim(0, 1.05)
+        plt.text(1, 0.05, 'LHCb unofficial',
+                 verticalalignment='bottom', horizontalalignment='right')
+        plt.legend(loc='best')
+        plt.xlabel('false positive rate')
+        plt.ylabel('true positive rate')
+        filename = (args.plot
+                    if args.plot.endswith('.pdf')
+                    else args.plot + '.pdf')
+        plt.savefig(filename, bbox_inches='tight')
+        print('done.')
+
     print(dedent("""\
           Final {}-fold bootstrap performance
              D2 = {:<6}%
