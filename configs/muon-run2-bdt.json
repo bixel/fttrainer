@@ -20,28 +20,27 @@
         ],
         "chunksize": 5000
     },
-    "selections": [
-        "partP > 0",
-        "partPt > 1.1",
-        "IsSignalDaughter == 0",
-        "minPhiDistance > 0.005",
-        "MuonPIDIsMuon == 1",
-        "partlcs < 3",
-        "RecVertexIP > 0",
-        "ghostProb < 0.4",
-        "PIDNNm > 0.35",
-        "PROBNNpi < 0.8",
-        "PROBNNe < 0.8",
-        "PROBNNk < 0.8",
-        "PROBNNp < 0.8",
-        "IPPU > 3"
+    "inclusive_mva_features": [
+        "partP",
+        "partPt",
+        "IPPU",
+        "ghostProb",
+        "PIDNNm",
+        "RecVertexIP",
+        "mult",
+        "ptB",
+        "IPs",
+        "partlcs",
+        "PROBNNpi",
+        "PROBNNk",
+        "PROBNNp",
+        "PROBNNe"
     ],
-    "sorting_feature": "tp_partPt",
     "n_cv": 10,
     "xgb_kwargs": {
         "max_depth": 2,
-        "learning_rate": 0.01,
-        "n_estimators": 200
+        "n_estimators": 100
     },
-    "n_jobs": 12
+    "n_jobs": 12,
+    "training_weights": false
 }
