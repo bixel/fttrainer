@@ -124,6 +124,10 @@ def main():
                              df_sets[(i + 1) % 3].copy(),
                              df_sets[(i + 2) % 3].copy())
             model = XGBClassifier(nthread=n_jobs, **xgb_kwargs)
+            sample_weight = (df1.target
+                             if 'training_weights' in config
+                                and config['training_weights']
+                             else None)
             model.fit(df1[mva_features], df1.target,
                       sample_weight=df1.SigYield_sw)
 
@@ -138,7 +142,8 @@ def main():
             calibrator = PolynomialLogisticRegression(power=4,
                                                       solver='lbfgs',
                                                       n_jobs=n_jobs)
-            calibrator.fit(df2_max.probas.reshape(-1, 1), df2_max.target)
+            calibrator.fit(df2_max.probas.reshape(-1, 1), df2_max.target,
+                           sample_weight=df2_max.SigYield_sw)
 
             df3_max['calib_probas'] = calibrator.predict_proba(df3_max.probas)[:, 1]
 
