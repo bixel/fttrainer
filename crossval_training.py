@@ -3,6 +3,8 @@
 
 from __future__ import print_function, division
 
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -32,10 +34,6 @@ from scripts.calibration import PolynomialLogisticRegression
 from scripts.metrics import tagging_power_score, d2_score
 
 
-def add_features(df):
-    df['']
-
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config-file', type=str, default=None)
@@ -61,10 +59,9 @@ def main():
               'Define one with `--config-file`.')
         sys.exit(1)
 
-    # read dataset
-    files = config['files']
-    if 'filepath' in config:
-        files = [config['filepath'] + f for f in files]
+    # read dataset, create a list of absolute filenames
+    files = [os.path.join(config.get('filepath', ''), f)
+             for f in config['files']]
     kwargs = config['pandas_kwargs']
 
     print('Reading ', end='')
@@ -79,43 +76,63 @@ def main():
              if maxslices is not None and maxslices < (entries / chunksize)
              else (entries / chunksize))
     print(total * chunksize, 'events.')
-    df = pd.concat([
-        df for df in tqdm(
-            islice(
-                read_root(files, flatten=True, **kwargs), maxslices),
-            total=total)])
 
-    # rename the tagging particle branches
-    df.rename(columns=dict(zip(df.columns,
-        [c.replace(config['tagging_particle_prefix'], 'tp').replace('-', '_')
-            for c in df.columns])),
-        inplace=True)
-    df['event_id'] = df.runNumber.apply(str) + '_' + df.eventNumber.apply(str)
-    if 'invert_target' in config and config['invert_target']:
-        df['target'] = np.sign(df.B_ID) != np.sign(df.tp_ID)
-    else:
-        df['target'] = np.sign(df.B_ID) == np.sign(df.tp_ID)
+    # variables to track some statistics
+    total_event_number = 0
+    wrong_tag_number = 0
+    selected_event_number = 0
 
-    # read features and selections
-    selection_query = ' and '.join(['tp_' + f for f in config['selections']])
-    mva_features = ['tp_' + f for f in config['mva_features']]
+    # this will be the training dataframe
+    merged_training_df = None
 
-    # apply selections
-    selected_df = df.query(selection_query)
+    # loop over tuple and fill training variables
+    for df in tqdm(
+            islice(read_root(files, flatten=True, **kwargs), maxslices),
+            total=total):
+        taggingParticleBranchPrefix = config['tagging_particle_prefix']
 
-    # select max pt data
-    selected_df.reset_index(drop=True, inplace=True)
-    max_df = selected_df.iloc[selected_df
-                              .groupby('event_id')[config['sorting_feature']]
-                              .idxmax()].copy()
-    max_df['probas'] = 0.5
-    max_df['calib_probas'] = 0.5
-    total_event_number = get_event_number(df)
+
+        # rename the tagging particle branches
+        df.rename(columns=dict(zip(df.columns,
+            [c.replace(taggingParticleBranchPrefix , 'tp').replace('-', '_')
+                for c in df.columns])),
+            inplace=True)
+        df['event_id'] = df.runNumber.apply(str) + '_' + df.eventNumber.apply(str)
+        if 'invert_target' in config and config['invert_target']:
+            df['target'] = np.sign(df.B_ID) != np.sign(df.tp_ID)
+        else:
+            df['target'] = np.sign(df.B_ID) == np.sign(df.tp_ID)
+
+        # read features and selections
+        selection_query = ' and '.join(['tp_' + f for f in config['selections']])
+        mva_features = ['tp_' + f for f in config['mva_features']]
+
+        # apply selections
+        selected_df = df.query(selection_query)
+
+        # select max pt particles
+        sorting_feature = (taggingParticleBranchPrefix 
+                           + '_' +config['sorting_feature'])
+        selected_df.reset_index(drop=True, inplace=True)
+        max_df = selected_df.iloc[selected_df
+                                  .groupby('event_id')[config['sorting_feature']]
+                                  .idxmax()].copy()
+        max_df['probas'] = 0.5
+        max_df['calib_probas'] = 0.5
+
+        # append this chunk to the training dataframe
+        merged_training_df = pd.concat(merged_training_df, max_df)
+
+        # update average numbers
+        total_event_number += get_event_number(df)
+        selected_event_number += get_event_number(selected_df)
+        wrong_tag_number += np.sum(max_df.SigYield_sw * ~max_df.target)
+
     total_event_number = ufloat(total_event_number, np.sqrt(total_event_number))
-    selected_event_number = get_event_number(max_df)
     selected_event_number = ufloat(selected_event_number, np.sqrt(selected_event_number))
     efficiency = selected_event_number / total_event_number
-    avg_omega = np.sum(max_df.SigYield_sw * ~max_df.target) / np.sum(max_df.SigYield_sw)
+    wrong_tag_number = ufloat(wrong_tag_number, np.sqrt(wrong_tag_number))
+    avg_omega = wrong_tag_number / selected_event_number
     avg_omega = ufloat(avg_omega, avg_omega / np.sqrt(selected_event_number.n))
     avg_dilution = (1 - 2 * avg_omega)**2
     avg_tagging_power = efficiency * avg_dilution
@@ -142,7 +159,8 @@ def main():
     pbar = tqdm(total=nfold * 3)
     for _ in range(nfold):
         # yield 3-fold split for CV
-        df_sets = [max_df.iloc[indices] for indices in NSplit(max_df)]
+        df_sets = [merged_training_df.iloc[indices]
+                   for indices in NSplit(max_df)]
 
         cv_scores = []
         for i in range(3):
@@ -180,8 +198,9 @@ def main():
             bootstrap_d2s.append(d2_score(calib_probas,
                                           sample_weight=df3.SigYield_sw))
             pbar.update(1)
-
     pbar.close()
+
+    # plot roc curve on request
     if args.plot is not None:
         print('Plotting ROC curves...', end=' ')
         curve_points = np.array(bootstrap_roc_curves)

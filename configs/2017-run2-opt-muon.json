@@ -1,0 +1,54 @@
+{
+    "filepath": "/fhgfs/groups/e5/lhcb/analysis/FT/NTuples/OSOptimisationSummer2017/DTT_2016_Reco16Strip26_20170522_jwishahi",
+    "files": [
+        "DTT_2016_Reco16Strip26_20170522.root"
+    ],
+    "tagging_particle_prefix": "B_OSMuonDev_TagPartsFeature",
+    "invert_target": false,
+    "pandas_kwargs": {
+        "key": "Bd2JpsiKstarDetached/DecayTree",
+        "columns": [
+            "B_OSMuonDev_TagPartsFeature*",
+            "B_ID",
+            "B_PT",
+            "runNumber",
+            "eventNumber"
+        ],
+        "chunksize": 5000
+    },
+    "mva_features": [
+        "P",
+        "PT",
+        "IPPUSig",
+        "PROBNNghost_MC15TuneV1",
+        "PROBNNmu_MC15TuneV1",
+        "IPSig",
+        "countTracks",
+        "Signal_PT",
+        "IPSig"
+    ],
+    "selections": [
+        "P/1000 > 0",
+        "PT/1000 > 1.1",
+        "IsSignalDaughter == 0",
+        "minPhiDistance > 0.005",
+        "MuonPIDIsMuon == 1",
+        "partlcs < 3",
+        "IPSig > 0",
+        "PROBNNghost_MC15TuneV1 < 0.4",
+        "PROBNNmu_MC15TuneV1 > 0.35",
+        "PROBNNpi_MC15TuneV1 < 0.8",
+        "PROBNNe_MC15TuneV1 < 0.8",
+        "PROBNNk_MC15TuneV1 < 0.8",
+        "PROBNNp_MC15TuneV1 < 0.8",
+        "IPPUSig > 3"
+    ],
+    "sorting_feature": "PT",
+    "n_cv": 10,
+    "xgb_kwargs": {
+        "max_depth": 3,
+        "learning_rate": 0.01,
+        "n_estimators": 300
+    },
+    "n_jobs": 12
+}
