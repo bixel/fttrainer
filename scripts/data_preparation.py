@@ -45,15 +45,16 @@ class NSplit(object):
     def __init__(self, df, splits=3, shuffle=True):
         self.df = df
         self.df.reset_index(inplace=True, drop=True)
-        self.unique_events = self.df.event_id.unique()
-        self.raw_indices = np.arange(len(df))
+        self.unique_events = self.df.groupby(['eventNumber', 'runNumber'])[
+            self.df.columns[0]].idxmax()
+        self.raw_indices = self.df.index.values
         if shuffle:
             np.random.shuffle(self.unique_events)
         self.raw_index_sets = np.array_split(self.unique_events, splits)
 
     def __iter__(self):
         for index_set in self.raw_index_sets:
-            yield self.raw_indices[self.df.event_id.isin(index_set).values]
+            yield self.raw_indices[self.df.index.isin(index_set)]
 
 
 def get_event_number(df, weight_column='SigYield_sw'):
