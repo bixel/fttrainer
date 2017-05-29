@@ -111,17 +111,16 @@ def main():
         selected_df = df.query(selection_query)
 
         # select max pt particles
-        sorting_feature = (taggingParticleBranchPrefix 
-                           + '_' +config['sorting_feature'])
+        sorting_feature = ('tp_' + config['sorting_feature'])
         selected_df.reset_index(drop=True, inplace=True)
         max_df = selected_df.iloc[selected_df
-                                  .groupby('event_id')[config['sorting_feature']]
+                                  .groupby('event_id')[sorting_feature]
                                   .idxmax()].copy()
         max_df['probas'] = 0.5
         max_df['calib_probas'] = 0.5
 
         # append this chunk to the training dataframe
-        merged_training_df = pd.concat(merged_training_df, max_df)
+        merged_training_df = pd.concat([merged_training_df, max_df])
 
         # update average numbers
         total_event_number += get_event_number(df)
@@ -133,7 +132,7 @@ def main():
     efficiency = selected_event_number / total_event_number
     wrong_tag_number = ufloat(wrong_tag_number, np.sqrt(wrong_tag_number))
     avg_omega = wrong_tag_number / selected_event_number
-    avg_omega = ufloat(avg_omega, avg_omega / np.sqrt(selected_event_number.n))
+    avg_omega = ufloat(avg_omega.n, avg_omega.n / np.sqrt(selected_event_number.n))
     avg_dilution = (1 - 2 * avg_omega)**2
     avg_tagging_power = efficiency * avg_dilution
     print(dedent("""\
@@ -160,7 +159,7 @@ def main():
     for _ in range(nfold):
         # yield 3-fold split for CV
         df_sets = [merged_training_df.iloc[indices]
-                   for indices in NSplit(max_df)]
+                   for indices in NSplit(merged_training_df)]
 
         cv_scores = []
         for i in range(3):
@@ -173,18 +172,18 @@ def main():
 
             probas = model.predict_proba(df2[mva_features])[:, 1]
             df2['probas'] = probas
-            max_df.loc[df2.index, 'probas'] = probas
+            merged_training_df.loc[df2.index, 'probas'] = probas
 
             # calibrate
             calibrator = PolynomialLogisticRegression(power=3,
                                                       solver='lbfgs',
                                                       n_jobs=n_jobs)
-            calibrator.fit(df2.probas.reshape(-1, 1), df2.target)
+            calibrator.fit(df2.probas.values.reshape(-1, 1), df2.target)
 
             probas = model.predict_proba(df3[mva_features])[:, 1]
             calib_probas = calibrator.predict_proba(probas)[:, 1]
             df3['calib_probas'] = calib_probas
-            max_df.loc[df3.index, 'calib_probas'] = calib_probas
+            merged_training_df.loc[df3.index, 'calib_probas'] = calib_probas
 
             score = tagging_power_score(calib_probas,
                                         efficiency=efficiency,

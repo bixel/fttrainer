@@ -1,18 +1,19 @@
 {
-    "filepath": "/fhgfs/groups/e5/lhcb/analysis/FT/NTuples/OSOptimisationSummer2017/DTT_2016_Reco16Strip26_20170522_jwishahi",
+    "filepath": "/fhgfs/groups/e5/lhcb/analysis/FT/NTuples/tmp_os_opt_move_to_OSOptSum17/",
     "files": [
-        "DTT_2016_Reco16Strip26_20170522.root"
+        "sweights2016.root"
     ],
     "tagging_particle_prefix": "B_OSMuonDev_TagPartsFeature",
     "invert_target": false,
     "pandas_kwargs": {
-        "key": "Bd2JpsiKstarDetached/DecayTree",
+        "key": "DecayTree",
         "columns": [
             "B_OSMuonDev_TagPartsFeature*",
             "B_ID",
             "B_PT",
             "runNumber",
-            "eventNumber"
+            "eventNumber",
+            "SigYield_sw"
         ],
         "chunksize": 5000
     },
@@ -20,9 +21,9 @@
         "P",
         "PT",
         "IPPUSig",
-        "PROBNNghost_MC15TuneV1",
+        "TRGHP",
         "PROBNNmu_MC15TuneV1",
-        "IPSig",
+        "AbsIP",
         "countTracks",
         "Signal_PT",
         "IPSig"
@@ -31,11 +32,11 @@
         "P/1000 > 0",
         "PT/1000 > 1.1",
         "IsSignalDaughter == 0",
-        "minPhiDistance > 0.005",
+        "minPhiDistance >= 0.005",
         "MuonPIDIsMuon == 1",
-        "partlcs < 3",
+        "TRCHI2DOF <= 3",
         "IPSig > 0",
-        "PROBNNghost_MC15TuneV1 < 0.4",
+        "TRGHP < 0.4",
         "PROBNNmu_MC15TuneV1 > 0.35",
         "PROBNNpi_MC15TuneV1 < 0.8",
         "PROBNNe_MC15TuneV1 < 0.8",
