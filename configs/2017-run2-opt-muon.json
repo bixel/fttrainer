@@ -12,7 +12,8 @@
             "B_PT",
             "runNumber",
             "eventNumber",
-            "SigYield_sw"
+            "SigYield_sw",
+            "nCandidate"
         ],
         "chunksize": 5000
     },
@@ -41,9 +42,11 @@
         "B_OSMuonDev_TagPartsFeature_PROBNNe_MC15TuneV1 < 0.8",
         "B_OSMuonDev_TagPartsFeature_PROBNNk_MC15TuneV1 < 0.8",
         "B_OSMuonDev_TagPartsFeature_PROBNNp_MC15TuneV1 < 0.8",
-        "B_OSMuonDev_TagPartsFeature_IPPUSig > 3"
+        "B_OSMuonDev_TagPartsFeature_IPPUSig > 3",
+        "nCandidate == 0"
     ],
     "sorting_feature": "B_OSMuonDev_TagPartsFeature_PT",
+    "particles_per_event": 3,
     "n_cv": 10,
     "xgb_kwargs": {
         "max_depth": 3,
