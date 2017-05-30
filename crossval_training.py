@@ -235,8 +235,6 @@ def main():
         fprs = np.array(fprs)
         tprs = np.array(tprs)
         plt.style.use('ggplot')
-        :qa
-        :q
         plt.rcParams['figure.figsize'] = (6, 6)
         plt.rcParams['font.size'] = 12
         plt.plot([0, 1], '--', label='random')
