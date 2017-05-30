@@ -11,6 +11,8 @@ import pandas as pd
 from sklearn.metrics import roc_curve
 
 import ROOT
+# disable cmd line parsing before other ROOT deps are loaded
+ROOT.PyConfig.IgnoreCommandLineOptions = True
 from root_pandas import read_root
 
 from xgboost import XGBClassifier
@@ -31,8 +33,6 @@ from uncertainties.unumpy import (nominal_values as noms,
 from scripts.data_preparation import get_event_number, NSplit
 from scripts.calibration import PolynomialLogisticRegression
 from scripts.metrics import tagging_power_score, d2_score
-
-ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 
 def parse_args():
