@@ -108,9 +108,9 @@ def read_full_files(args, config):
 
         # select max pt particles
         sorting_feature = ('tp_' + config['sorting_feature'])
-        max_df = selected_df.iloc[selected_df
-                                  .groupby(['runNumber', 'eventNumber'])[sorting_feature]
-                                  .idxmax()].copy()
+        max_df = selected_df.loc[selected_df
+                                 .groupby(['runNumber', 'eventNumber'])[sorting_feature]
+                                 .idxmax()].copy()
         max_df['probas'] = 0.5
         max_df['calib_probas'] = 0.5
 
