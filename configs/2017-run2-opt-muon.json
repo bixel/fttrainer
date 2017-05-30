@@ -3,7 +3,7 @@
     "files": [
         "sweights2016.root"
     ],
-    "target_eval": "abs(B_ID) == abs(B_OSMuonDev_TagPartsFeature_ID)",
+    "target_eval": "B_ID > 0 & B_OSMuonDev_TagPartsFeature_ID > 0",
     "pandas_kwargs": {
         "key": "DecayTree",
         "columns": [
