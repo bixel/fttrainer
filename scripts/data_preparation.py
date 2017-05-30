@@ -61,4 +61,4 @@ def get_event_number(df, weight_column='SigYield_sw'):
     """ Use weighted sums for multi-particle events
     """
     # max, min, mean, first should give the same values here
-    return np.sum(df.groupby('event_id')[weight_column].first())
+    return np.sum(df.groupby(['runNumber', 'eventNumber'])[weight_column].first())
