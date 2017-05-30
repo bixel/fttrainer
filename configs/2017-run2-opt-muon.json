@@ -1,11 +1,11 @@
 {
     "filepath": "/fhgfs/groups/e5/lhcb/analysis/FT/NTuples/tmp_os_opt_move_to_OSOptSum17/",
     "files": [
-        "sweights2016.root"
+        "DTT_2016_Reco16Strip26_20170529_jwishahi_TupleB_sweights.root"
     ],
     "target_eval": "B_ID > 0 & B_OSMuonDev_TagPartsFeature_ID > 0",
     "pandas_kwargs": {
-        "key": "DecayTree",
+        "key": "Bu2JpsiKDetached",
         "columns": [
             "B_OSMuonDev_TagPartsFeature*",
             "B_ID",

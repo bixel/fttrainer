@@ -72,7 +72,7 @@ def read_full_files(args, config):
     entries = 0
     for f in files:
         rootfile = ROOT.TFile(f)
-        tree = rootfile.Get(kwargs['key'])
+        tree = rootfile.Get(kwargs.get('key'))
         entries += tree.GetEntries()
     maxslices = args.max_slices
     chunksize = kwargs['chunksize']
@@ -90,17 +90,27 @@ def read_full_files(args, config):
             total=total):
         df['target'] = df.eval(config['target_eval'])
 
+        # set a proper index, keep columns to store them to .root later on
+        df.set_index(['runNumber', 'eventNumber', '__array_index'],
+                     inplace=True, drop=False)
+
         # read features and selections
         selection_query = ' and '.join(config['selections'])
 
         # apply selections
         selected_df = df.query(selection_query)
 
-        # select max pt particles
+        # select n max pt particles
         sorting_feature = config['sorting_feature']
-        max_df = selected_df.loc[selected_df
-                                 .groupby(['runNumber', 'eventNumber'])[sorting_feature]
-                                 .idxmax()].copy()
+        nMax = config.get('particles_per_event', 1)
+        # use pd.Grouper explicitly here, since the index columns are still
+        # present in the DataFrame
+        grouped = selected_df.groupby(
+            [pd.Grouper(level=l) for l in ['runNumber', 'eventNumber']])
+        # calculate indices of the top n rows in each group; this also resets
+        # the index to the original format
+        indices = grouped[sorting_feature].nlargest(nMax).reset_index([2, 3]).index
+        max_df = selected_df.loc[indices].copy()
         max_df['probas'] = 0.5
         max_df['calib_probas'] = 0.5
 
