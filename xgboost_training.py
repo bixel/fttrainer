@@ -12,6 +12,8 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True  # noqa
 from root_pandas import read_root
 from xgboost import XGBClassifier
 
+from scripts.metrics import tagging_power_score
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -27,6 +29,9 @@ def parse_args():
                         that this is NOT done in a cross-validated manner.""")
     parser.add_argument('-s', '--save-model', type=str, default=None,
                         help="""Write the XGBoost model to disk.""")
+    parser.add_argument('-n', '--pre-sel-events', type=float, default=None,
+                        help="""Number of events initially stored in the
+                        tuple.""")
     return parser.parse_args()
 
 
@@ -49,12 +54,18 @@ def main():
     X = df[mva_features]
     y = df.target
     model.fit(X, y)
+    probas = model.predict_proba(X)[:, 1]
+    if args.pre_sel_events:
+        print('{:.2f}%'.format(
+            100 * tagging_power_score(
+                probas, tot_event_number=args.pre_sel_events,
+                sample_weight=df.SigYield_sw)))
 
     if args.save_model:
         model.booster().save_model(args.save_model)
 
     if args.output_file:
-        df['probas'] = model.predict_proba(X)[:, 1]
+        df['probas'] = probas
         df.to_root(args.output_file)
 
 if __name__ == '__main__':
