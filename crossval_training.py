@@ -88,26 +88,16 @@ def read_full_files(args, config):
     for df in tqdm(
             islice(read_root(files, flatten=True, **kwargs), maxslices),
             total=total):
-        taggingParticleBranchPrefix = config['tagging_particle_prefix']
-
-        # rename the tagging particle branches
-        df.rename(columns=dict(zip(df.columns,
-                                   [c.replace(taggingParticleBranchPrefix, 'tp').replace('-', '_')
-                                    for c in df.columns])),
-                  inplace=True)
-        if 'invert_target' in config and config['invert_target']:
-            df['target'] = np.sign(df.B_ID) != np.sign(df.tp_ID)
-        else:
-            df['target'] = np.sign(df.B_ID) == np.sign(df.tp_ID)
+        df['target'] = df.eval(config['target_eval'])
 
         # read features and selections
-        selection_query = ' and '.join(['tp_' + f for f in config['selections']])
+        selection_query = ' and '.join(config['selections'])
 
         # apply selections
         selected_df = df.query(selection_query)
 
         # select max pt particles
-        sorting_feature = ('tp_' + config['sorting_feature'])
+        sorting_feature = config['sorting_feature']
         max_df = selected_df.loc[selected_df
                                  .groupby(['runNumber', 'eventNumber'])[sorting_feature]
                                  .idxmax()].copy()
@@ -165,7 +155,7 @@ def main():
                   .format(args.output_file))
             sys.exit()
 
-    mva_features = ['tp_' + f for f in config['mva_features']]
+    mva_features = config['mva_features']
 
     # build BDT model and train the classifier n_cv x 3 times
     xgb_kwargs = config['xgb_kwargs']

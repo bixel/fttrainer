@@ -3,8 +3,7 @@
     "files": [
         "sweights2016.root"
     ],
-    "tagging_particle_prefix": "B_OSMuonDev_TagPartsFeature",
-    "invert_target": false,
+    "target_eval": "abs(B_ID) == abs(B_OSMuonDev_TagPartsFeature_ID)",
     "pandas_kwargs": {
         "key": "DecayTree",
         "columns": [
@@ -18,33 +17,33 @@
         "chunksize": 5000
     },
     "mva_features": [
-        "P",
-        "PT",
-        "IPPUSig",
-        "TRGHP",
-        "PROBNNmu_MC15TuneV1",
-        "AbsIP",
-        "countTracks",
-        "Signal_PT",
-        "IPSig"
+        "B_OSMuonDev_TagPartsFeature_P",
+        "B_OSMuonDev_TagPartsFeature_PT",
+        "B_OSMuonDev_TagPartsFeature_IPPUSig",
+        "B_OSMuonDev_TagPartsFeature_TRGHP",
+        "B_OSMuonDev_TagPartsFeature_PROBNNmu_MC15TuneV1",
+        "B_OSMuonDev_TagPartsFeature_AbsIP",
+        "B_OSMuonDev_TagPartsFeature_countTracks",
+        "B_OSMuonDev_TagPartsFeature_Signal_PT",
+        "B_OSMuonDev_TagPartsFeature_IPSig"
     ],
     "selections": [
-        "P/1000 > 0",
-        "PT/1000 > 1.1",
-        "IsSignalDaughter == 0",
-        "minPhiDistance >= 0.005",
-        "MuonPIDIsMuon == 1",
-        "TRCHI2DOF <= 3",
-        "IPSig > 0",
-        "TRGHP < 0.4",
-        "PROBNNmu_MC15TuneV1 > 0.35",
-        "PROBNNpi_MC15TuneV1 < 0.8",
-        "PROBNNe_MC15TuneV1 < 0.8",
-        "PROBNNk_MC15TuneV1 < 0.8",
-        "PROBNNp_MC15TuneV1 < 0.8",
-        "IPPUSig > 3"
+        "B_OSMuonDev_TagPartsFeature_P/1000 > 0",
+        "B_OSMuonDev_TagPartsFeature_PT/1000 > 1.1",
+        "B_OSMuonDev_TagPartsFeature_IsSignalDaughter == 0",
+        "B_OSMuonDev_TagPartsFeature_minPhiDistance >= 0.005",
+        "B_OSMuonDev_TagPartsFeature_MuonPIDIsMuon == 1",
+        "B_OSMuonDev_TagPartsFeature_TRCHI2DOF <= 3",
+        "B_OSMuonDev_TagPartsFeature_IPSig > 0",
+        "B_OSMuonDev_TagPartsFeature_TRGHP < 0.4",
+        "B_OSMuonDev_TagPartsFeature_PROBNNmu_MC15TuneV1 > 0.35",
+        "B_OSMuonDev_TagPartsFeature_PROBNNpi_MC15TuneV1 < 0.8",
+        "B_OSMuonDev_TagPartsFeature_PROBNNe_MC15TuneV1 < 0.8",
+        "B_OSMuonDev_TagPartsFeature_PROBNNk_MC15TuneV1 < 0.8",
+        "B_OSMuonDev_TagPartsFeature_PROBNNp_MC15TuneV1 < 0.8",
+        "B_OSMuonDev_TagPartsFeature_IPPUSig > 3"
     ],
-    "sorting_feature": "PT",
+    "sorting_feature": "B_OSMuonDev_TagPartsFeature_PT",
     "n_cv": 10,
     "xgb_kwargs": {
         "max_depth": 3,
