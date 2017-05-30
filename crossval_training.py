@@ -92,7 +92,7 @@ def read_full_files(args, config):
 
         # set a proper index, keep columns to store them to .root later on
         df.set_index(['runNumber', 'eventNumber', '__array_index'],
-                     inplace=True, drop=False)
+                     inplace=True)
 
         # read features and selections
         selection_query = ' and '.join(config['selections'])
@@ -105,14 +105,11 @@ def read_full_files(args, config):
         nMax = config.get('particles_per_event', 1)
         # use pd.Grouper explicitly here, since the index columns are still
         # present in the DataFrame
-        grouped = selected_df.groupby(
-            [pd.Grouper(level=l) for l in ['runNumber', 'eventNumber']])
+        grouped = selected_df.groupby(['runNumber', 'eventNumber'])
         # calculate indices of the top n rows in each group; this also resets
         # the index to the original format
-        indices = grouped[sorting_feature].nlargest(nMax).reset_index([2, 3]).index
+        indices = grouped[sorting_feature].nlargest(nMax).index
         max_df = selected_df.loc[indices].copy()
-        max_df['probas'] = 0.5
-        max_df['calib_probas'] = 0.5
 
         # append this chunk to the training dataframe
         merged_training_df = pd.concat([merged_training_df, max_df])
@@ -160,7 +157,7 @@ def main():
         merged_training_df = read_full_files(args, config)
 
         if args.output_file:
-            merged_training_df.to_root(args.output_file)
+            merged_training_df.reset_index().to_root(args.output_file)
             print('File {} has been written. Exiting now.'
                   .format(args.output_file))
             sys.exit()
