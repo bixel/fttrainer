@@ -29,9 +29,6 @@ def parse_args():
                         that this is NOT done in a cross-validated manner.""")
     parser.add_argument('-s', '--save-model', type=str, default=None,
                         help="""Write the XGBoost model to disk.""")
-    parser.add_argument('-n', '--pre-sel-events', type=float, default=None,
-                        help="""Number of events initially stored in the
-                        tuple.""")
     return parser.parse_args()
 
 
@@ -40,6 +37,13 @@ def parse_config(filename):
         return None
     with open(filename, 'r') as f:
         return json.load(f)
+
+
+def get_event_number(config):
+    files = [config['filepath'] + f for f in config['files']]
+    df = read_root(files, key=config['pandas_kwargs']['key'],
+                   columns=['SigYield_sw', 'nCandidate'])
+    return df[df.nCandidate == 0].SigYield_sw.sum()
 
 
 def main():
@@ -54,18 +58,19 @@ def main():
     X = df[mva_features]
     y = df.target
     model.fit(X, y)
-    probas = model.predict_proba(X)[:, 1]
-    if args.pre_sel_events:
-        print('{:.2f}%'.format(
-            100 * tagging_power_score(
-                probas, tot_event_number=args.pre_sel_events,
-                sample_weight=df.SigYield_sw)))
+    df['probas'] = model.predict_proba(X)[:, 1]
+
+    # df is expected to be sorted event-wise
+    maxPtParticles = df.groupby(['runNumber', 'eventNumber']).head(1)
+    print('{:.2f}%'.format(
+        100 * tagging_power_score(
+            maxPtParticles.probas, tot_event_number=get_event_number(config),
+            sample_weight=maxPtParticles.SigYield_sw)))
 
     if args.save_model:
         model.booster().save_model(args.save_model)
 
     if args.output_file:
-        df['probas'] = probas
         df.to_root(args.output_file)
 
 if __name__ == '__main__':
