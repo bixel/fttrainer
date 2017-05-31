@@ -52,6 +52,9 @@ def parse_args():
                         'ranches, as well as run number information. '
                         'This can be used for a final BDT training '
                         '+ calibration.')
+    parser.add_argument('--overwrite', default=False,
+                        action='store_true', help="""Should the output file
+                        be overwritten if it exists?""")
     return parser.parse_args()
 
 
@@ -82,6 +85,15 @@ def read_full_files(args, config):
 
     print(total * chunksize, 'events.')
 
+    # clean output file if it exists
+    if args.output_file and os.path.isfile(args.output_file):
+        if args.overwrite:
+            os.remove(args.output_file)
+        else:
+            print('file `{}` exists! set overwrite argument to overwrite '
+                  'the file.'.format(args.output_file))
+            sys.exit(1)
+
     merged_training_df = None
 
     # loop over tuple and fill training variables
@@ -90,9 +102,9 @@ def read_full_files(args, config):
             total=total):
         df['target'] = df.eval(config['target_eval'])
 
-        # set a proper index, keep columns to store them to .root later on
+        # set a proper index
         df.set_index(['runNumber', 'eventNumber', '__array_index'],
-                     inplace=True)
+                     inplace=True, drop=True)
 
         # read features and selections
         selection_query = ' and '.join(config['selections'])
@@ -103,13 +115,19 @@ def read_full_files(args, config):
         # select n max pt particles
         sorting_feature = config['sorting_feature']
         nMax = config.get('particles_per_event', 1)
-        # use pd.Grouper explicitly here, since the index columns are still
-        # present in the DataFrame
-        grouped = selected_df.groupby(['runNumber', 'eventNumber'])
-        # calculate indices of the top n rows in each group; this also resets
-        # the index to the original format
-        indices = grouped[sorting_feature].nlargest(nMax).index
-        max_df = selected_df.loc[indices].copy()
+        grouped = selected_df.groupby(['runNumber', 'eventNumber'], sort=False)
+        # calculate indices of the top n rows in each group;
+        # depending on how many particles are found in each group, the index
+        # needs to be reset. This seems to be a bug and might be fixed in 0.20
+        # see pandas github issue #15297
+        if grouped[sorting_feature].count().max() > nMax:
+            indices = grouped[sorting_feature].nlargest(nMax).reset_index([0, 1]).index
+        else:
+            indices = grouped[sorting_feature].nlargest(nMax).index
+        max_df = selected_df.loc[indices]
+
+        if args.output_file:
+            max_df.reset_index().to_root(args.output_file, mode='a')
 
         # append this chunk to the training dataframe
         merged_training_df = pd.concat([merged_training_df, max_df])
@@ -119,15 +137,16 @@ def read_full_files(args, config):
     return merged_training_df
 
 
-def print_avg_tagging_info(selected_df, total_event_number):
+def print_avg_tagging_info(df, total_event_number):
+    df = df.groupby(['runNumber', 'eventNumber']).first()
     total_event_number = ufloat(total_event_number, np.sqrt(total_event_number))
-    selected_event_number = get_event_number(selected_df)
-    selected_event_number = ufloat(selected_event_number, np.sqrt(selected_event_number))
-    efficiency = selected_event_number / total_event_number
-    wrong_tag_number = np.sum(selected_df.SigYield_sw * ~selected_df.target)
+    event_number = get_event_number(df)
+    event_number = ufloat(event_number, np.sqrt(event_number))
+    efficiency = event_number / total_event_number
+    wrong_tag_number = np.sum(df.SigYield_sw * ~df.target)
     wrong_tag_number = ufloat(wrong_tag_number, np.sqrt(wrong_tag_number))
-    avg_omega = wrong_tag_number / selected_event_number
-    avg_omega = ufloat(avg_omega.n, avg_omega.n / np.sqrt(selected_event_number.n))
+    avg_omega = wrong_tag_number / event_number
+    avg_omega = ufloat(avg_omega.n, avg_omega.n / np.sqrt(event_number.n))
     avg_dilution = (1 - 2 * avg_omega)**2
     avg_tagging_power = efficiency * avg_dilution
     print(dedent("""\
@@ -155,12 +174,6 @@ def main():
         merged_training_df = read_root(args.input_file)
     else:
         merged_training_df = read_full_files(args, config)
-
-        if args.output_file:
-            merged_training_df.reset_index().to_root(args.output_file)
-            print('File {} has been written. Exiting now.'
-                  .format(args.output_file))
-            sys.exit()
 
     mva_features = config['mva_features']
 
