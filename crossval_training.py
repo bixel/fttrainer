@@ -112,7 +112,8 @@ def read_full_files(args, config):
         maxQ = 10
         for s in [selections[i * maxQ:i * maxQ + maxQ]
                   for i in range(int(len(selections) / maxQ) + 1)]:
-            selected_df.query(' and '.join(s), inplace=True)
+            if len(s):
+                selected_df.query(' and '.join(s), inplace=True)
 
         # select n max pt particles
         sorting_feature = config['sorting_feature']
