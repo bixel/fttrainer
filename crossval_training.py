@@ -106,11 +106,13 @@ def read_full_files(args, config):
         df.set_index(['runNumber', 'eventNumber', '__array_index'],
                      inplace=True, drop=True)
 
-        # read features and selections
-        selection_query = ' and '.join(config['selections'])
-
         # apply selections
-        selected_df = df.query(selection_query)
+        selected_df = df
+        selections = config['selections']
+        maxQ = 10
+        for s in [selections[i * maxQ:i * maxQ + maxQ]
+                  for i in range(int(len(selections) / maxQ) + 1)]:
+            selected_df.query(' and '.join(s), inplace=True)
 
         # select n max pt particles
         sorting_feature = config['sorting_feature']
