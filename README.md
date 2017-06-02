@@ -2,6 +2,47 @@
 
 Prototypes for FlavourTagging reoptimization scripts
 
+## Usage
+Currently, only the `crossval_training.py` and `xgboost_training.py` are
+actively developed. Each script uses configuration data from the `configs/`
+directory.
+
+### Cut Selection and Bootstrapped Crossvalidation
+Given a set of cut-parameters (defined in a tagger-specific config), the
+hyperparameters need to be validated to prevent overtraining.
+
+This can be done with the `crossval_training.py` script, e.g. like
+``` bash
+./crossval_training.py -c configs/someconfig.json -p roc_curve_plot.pdf
+```
+which will read the given configuration, print out average mistag power values
+and plot the average roc curve, obtained in the bootstrapping step.
+
+To speed up the read-in and selection step, the script is able to either write
+the selected tuple to disk (and only printout average tagging power values) via
+``` bash
+./crossval_training.py -c config.json -o selected_tuple.root
+```
+or read a preselected file via
+``` bash
+./crossval_training.py -c config.json -i selected_tuple.root -p plot.pdf
+```
+
+### Training XGBoost for production
+After the hyperparameters have been verified, a XGBoost model can be trained
+with the `xgboost_training.py` script. It will read files obtained in the
+previous step (i.e. *selected_tuple.root*), train a XGBoost classifier with the
+hyperparameters given in the configuration, calculate the per-event tagging
+power and write out the trained model.
+
+``` bash
+./xgboost_training.py -c config.json -i selected_tuple.root -o predicted_tuple.root -s xboost_model.model
+```
+
+### Calibration
+The best choice is to use the
+[EPM](https://gitlab.cern.ch/lhcb-ft/EspressoPerformanceMonitor) here.
+
 ## Running on lxplus
 I strongly recommend setting up an isolated, clean python environment using
 Anaconda (miniconda), therefore download conda via
