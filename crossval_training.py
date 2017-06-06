@@ -164,6 +164,13 @@ def print_avg_tagging_info(df, total_event_number):
                   100 * avg_tagging_power)))
 
 
+def get_event_number(config):
+    files = [config['filepath'] + f for f in config['files']]
+    df = read_root(files, key=config['pandas_kwargs']['key'],
+                   columns=['SigYield_sw', 'nCandidate'])
+    return df[df.nCandidate == 0].SigYield_sw.sum()
+
+
 def main():
     args = parse_args()
     config = parse_config(args.config_file)
@@ -181,6 +188,7 @@ def main():
         merged_training_df = read_full_files(args, config)
 
     mva_features = config['mva_features']
+    efficiency = merged_training_df.SigYield_sw.sum() / get_event_number(config)
 
     # build BDT model and train the classifier n_cv x 3 times
     xgb_kwargs = config['xgb_kwargs']
@@ -222,8 +230,10 @@ def main():
             df3['calib_probas'] = calib_probas
             merged_training_df.loc[df3.index, 'calib_probas'] = calib_probas
 
-            score = tagging_power_score(calib_probas,
-                                        efficiency=0.07,
+            max_pt_particles = df3.groupby(['runNumber', 'eventNumber']).head(1)
+
+            score = tagging_power_score(max_pt_particles.calib_probas,
+                                        efficiency=efficiency,
                                         sample_weight=df3.SigYield_sw)
             if args.plot is not None:
                 fpr, tpr = roc_curve(df3.target, probas,
