@@ -1,0 +1,45 @@
+{
+    "filepath": "/fhgfs/groups/e5/lhcb/analysis/FT/NTuples/tmp_os_opt_move_to_OSOptSum17/",
+    "files": [
+        "DTT_2016_Reco16Strip26_20170529_jwishahi_TupleB_sweights.root"
+    ],
+    "target_eval": "B_ID > 0 & B_OSMuonDev_TagPartsFeature_ID > 0",
+    "pandas_kwargs": {
+        "key": "Bu2JpsiKDetached",
+        "columns": [
+            "B_OSMuonDev_TagPartsFeature*",
+            "B_ID",
+            "B_PT",
+            "runNumber",
+            "eventNumber",
+            "SigYield_sw",
+            "nCandidate"
+        ],
+        "chunksize": 5000
+    },
+    "mva_features": [
+        "B_OSMuonDev_TagPartsFeature_P",
+        "B_OSMuonDev_TagPartsFeature_PT",
+        "B_OSMuonDev_TagPartsFeature_IPPUSig",
+        "B_OSMuonDev_TagPartsFeature_TRGHP",
+        "B_OSMuonDev_TagPartsFeature_PROBNNmu_MC15TuneV1",
+        "B_OSMuonDev_TagPartsFeature_AbsIP",
+        "B_OSMuonDev_TagPartsFeature_countTracks",
+        "B_OSMuonDev_TagPartsFeature_Signal_PT",
+        "B_OSMuonDev_TagPartsFeature_IPSig"
+    ],
+    "selections": [
+        "B_OSMuonDev_TagPartsFeature_IsSignalDaughter == 0",
+        "B_OSMuonDev_TagPartsFeature_MuonPIDIsMuon == 1",
+        "nCandidate == 0"
+    ],
+    "sorting_feature": "B_OSMuonDev_TagPartsFeature_PT",
+    "particles_per_event": 10,
+    "n_cv": 10,
+    "xgb_kwargs": {
+        "max_depth": 3,
+        "learning_rate": 0.01,
+        "n_estimators": 300
+    },
+    "n_jobs": 12
+}
