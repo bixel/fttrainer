@@ -1,0 +1,57 @@
+{
+    "filepath": "/fhgfs/groups/e5/lhcb/analysis/FT/NTuples/tmp_os_opt_move_to_OSOptSum17/",
+    "files": [
+        "DTT_2016_Reco16Strip26_20170529_jwishahi_TupleB_sweights.root"
+    ],
+    "target_eval": "B_ID > 0 & B_OSMuonDev_TagPartsFeature_ID > 0",
+    "pandas_kwargs": {
+        "key": "Bu2JpsiKDetached",
+        "columns": [
+            "B_OSMuonDev_TagPartsFeature*",
+            "B_ID",
+            "B_PT",
+            "runNumber",
+            "eventNumber",
+            "SigYield_sw",
+            "nCandidate"
+        ],
+        "chunksize": 5000
+    },
+    "mva_features": [
+        "B_OSMuonDev_TagPartsFeature_P",
+        "B_OSMuonDev_TagPartsFeature_PT",
+        "B_OSMuonDev_TagPartsFeature_IPPUSig",
+        "B_OSMuonDev_TagPartsFeature_TRGHP",
+        "B_OSMuonDev_TagPartsFeature_PROBNNmu_MC15TuneV1",
+        "B_OSMuonDev_TagPartsFeature_AbsIP",
+        "B_OSMuonDev_TagPartsFeature_countTracks",
+        "B_OSMuonDev_TagPartsFeature_Signal_PT",
+        "B_OSMuonDev_TagPartsFeature_IPSig"
+    ],
+    "selections": [
+        "B_OSMuonDev_TagPartsFeature_P/1000 > 1.0017325293594115",
+        "B_OSMuonDev_TagPartsFeature_PT/1000 > 0.9965580153038186",
+        "B_OSMuonDev_TagPartsFeature_TRGHP < 0.40104557150894593",
+        "B_OSMuonDev_TagPartsFeature_minPhiDistance >= 0.005043756105364224",
+        "B_OSMuonDev_TagPartsFeature_IPSig > 1.259528066798949e-05",
+        "B_OSMuonDev_TagPartsFeature_PROBNNmu_MC15TuneV1 > 0.7888025831693476 ",
+        "B_OSMuonDev_TagPartsFeature_PROBNNpi_MC15TuneV1 < 0.6992570288107766",
+        "B_OSMuonDev_TagPartsFeature_PROBNNe_MC15TuneV1 < 0.7055048471705669",
+        "B_OSMuonDev_TagPartsFeature_PROBNNk_MC15TuneV1 < 0.7241592016363074",
+        "B_OSMuonDev_TagPartsFeature_PROBNNp_MC15TuneV1 < 0.6999107897355835",
+        "B_OSMuonDev_TagPartsFeature_IPPUSig > 3.0265215606727747",
+        "B_OSMuonDev_TagPartsFeature_IsSignalDaughter == 0",
+        "B_OSMuonDev_TagPartsFeature_MuonPIDIsMuon == 1",
+        "B_OSMuonDev_TagPartsFeature_TRCHI2DOF <3",
+        "nCandidate == 0"
+    ],
+    "sorting_feature": "B_OSMuonDev_TagPartsFeature_PT",
+    "particles_per_event": 3,
+    "n_cv": 10,
+    "xgb_kwargs": {
+        "max_depth": 3,
+        "learning_rate": 0.01,
+        "n_estimators": 300
+    },
+    "n_jobs": 12
+}
