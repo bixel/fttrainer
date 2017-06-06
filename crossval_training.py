@@ -175,6 +175,8 @@ def main():
     # this will be the training dataframe
     if args.input_file:
         merged_training_df = read_root(args.input_file)
+        merged_training_df.set_index(['runNumber', 'eventNumber',
+                                      '__array_index'], inplace=True, drop=False)
     else:
         merged_training_df = read_full_files(args, config)
 
