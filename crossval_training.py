@@ -30,7 +30,7 @@ from uncertainties import ufloat
 from uncertainties.unumpy import (nominal_values as noms,
                                   std_devs as stds)
 
-from scripts.data_preparation import get_event_number, NSplit
+from scripts.data_preparation import NSplit
 from scripts.calibration import PolynomialLogisticRegression
 from scripts.metrics import tagging_power_score, d2_score
 
@@ -135,15 +135,14 @@ def read_full_files(args, config):
         # append this chunk to the training dataframe
         merged_training_df = pd.concat([merged_training_df, max_df])
 
-    print_avg_tagging_info(merged_training_df, total * chunksize)
-
     return merged_training_df
 
 
-def print_avg_tagging_info(df, total_event_number):
+def print_avg_tagging_info(df, config):
     df = df.groupby(['runNumber', 'eventNumber']).first()
-    total_event_number = ufloat(total_event_number, np.sqrt(total_event_number))
-    event_number = get_event_number(df)
+    total_event_number = get_event_number(config)
+    event_number = df.groupby(
+        ['runNumber', 'eventNumber']).SigYield_sw.first().sum()
     event_number = ufloat(event_number, np.sqrt(event_number))
     efficiency = event_number / total_event_number
     wrong_tag_number = np.sum(df.SigYield_sw * ~df.target)
@@ -183,9 +182,11 @@ def main():
     if args.input_file:
         merged_training_df = read_root(args.input_file)
         merged_training_df.set_index(['runNumber', 'eventNumber',
-                                      '__array_index'], inplace=True, drop=False)
+                                      '__array_index'], inplace=True)
     else:
         merged_training_df = read_full_files(args, config)
+
+    print_avg_tagging_info(merged_training_df, config)
 
     mva_features = config['mva_features']
     efficiency = merged_training_df.SigYield_sw.sum() / get_event_number(config)
