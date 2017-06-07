@@ -44,7 +44,7 @@ def concat_df_chunks(filenames, chunksize, **kwargs):
 class NSplit(object):
     def __init__(self, df, splits=3, shuffle=True):
         self.df = df
-        self.df.reset_index(inplace=True, drop=True)
+        self.df.reset_index(inplace=True)
         self.unique_events = self.df.groupby(['eventNumber', 'runNumber'])[
             self.df.columns[0]].idxmax()
         self.raw_indices = self.df.index.values
