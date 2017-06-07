@@ -34,7 +34,8 @@
     "selections": [
         "B_OSMuonDev_TagPartsFeature_MuonPIDIsMuon == 0",
         "B_OSMuonDev_TagPartsFeature_PROBNNk_MC15TuneV1 > 0.1",
-        "abs(B_OSMuonDev_TagPartsFeature_ID) == 321",
+        "B_OSMuonDev_TagPartsFeature_IsSignalDaughter == 0",
+        "abs(B_OSMuonDev_TagPartsFeature_ID) == 211",
         "nCandidate == 0"
     ],
     "sorting_feature": "B_OSMuonDev_TagPartsFeature_PT",
