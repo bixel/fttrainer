@@ -3,7 +3,7 @@
     "files": [
         "DTT_2016_Reco16Strip26_20170529_jwishahi_TupleB_sweights.root"
     ],
-    "target_eval": "B_ID > 0 & B_OSMuonDev_TagPartsFeature_ID > 0",
+    "target_eval": "(B_ID > 0) == (B_OSMuonDev_TagPartsFeature_ID > 0)",
     "pandas_kwargs": {
         "key": "Bu2JpsiKDetached",
         "columns": [
