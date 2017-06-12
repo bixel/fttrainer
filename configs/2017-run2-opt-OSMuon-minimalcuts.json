@@ -35,7 +35,7 @@
     ],
     "sorting_feature": "B_OSMuonDev_TagPartsFeature_PT",
     "particles_per_event": 10,
-    "n_cv": 10,
+    "n_bootstrap": 10,
     "xgb_kwargs": {
         "max_depth": 3,
         "learning_rate": 0.01,

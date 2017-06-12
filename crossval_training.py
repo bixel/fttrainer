@@ -55,6 +55,8 @@ def parse_args():
     parser.add_argument('--overwrite', default=False,
                         action='store_true', help="""Should the output file
                         be overwritten if it exists?""")
+    parser.add_argument('--n-bootstrap', default=None, type=int,
+                        help="""Number of cross-validation steps""")
     return parser.parse_args()
 
 
@@ -192,17 +194,17 @@ def main():
     mva_features = config['mva_features']
     efficiency = merged_training_df.SigYield_sw.sum() / get_event_number(config)
 
-    # build BDT model and train the classifier n_cv x 3 times
+    # build BDT model and train the classifier nBootstrap x 3 times
     xgb_kwargs = config['xgb_kwargs']
     n_jobs = config['n_jobs']
 
     bootstrap_scores = []
     bootstrap_d2s = []
     bootstrap_roc_curves = []
-    nfold = config['n_cv']
+    nBootstrap = args.n_bootstrap or config['n_bootstrap']
     print('Starting bootstrapping.')
-    pbar = tqdm(total=nfold * 6)
-    for _ in range(nfold):
+    pbar = tqdm(total=nBootstrap * 6)
+    for _ in range(nBootstrap):
         # yield 3-fold split for CV
         df_sets = [merged_training_df.iloc[indices]
                    for indices in NSplit(merged_training_df)]
@@ -236,7 +238,7 @@ def main():
 
             score = tagging_power_score(max_pt_particles.calib_probas,
                                         efficiency=efficiency,
-                                        sample_weight=df3.SigYield_sw)
+                                        sample_weight=max_pt_particles.SigYield_sw)
             if args.plot is not None:
                 fpr, tpr = roc_curve(df3.target, probas,
                                      sample_weight=df3.SigYield_sw)[:2]
@@ -288,7 +290,7 @@ def main():
           Final {}-fold bootstrap performance
              D2 = {:<6}%
           ε_eff = {:<6}%""")
-          .format(nfold,
+          .format(nBootstrap,
                   100 * ufloat(np.mean(bootstrap_d2s),
                                np.std(bootstrap_d2s)),
                   100 * ufloat(np.mean(noms(bootstrap_scores)),
