@@ -100,8 +100,6 @@ def read_full_files(args, config):
     for df in tqdm(
             islice(read_root(files, flatten=True, **kwargs), maxslices),
             total=total):
-        df['target'] = df.eval(config['target_eval'])
-
         # set a proper index
         df.set_index(['runNumber', 'eventNumber', '__array_index'],
                      inplace=True, drop=True)
@@ -185,6 +183,9 @@ def main():
                                       '__array_index'], inplace=True)
     else:
         merged_training_df = read_full_files(args, config)
+
+    # in every case, define a proper target
+    merged_training_df['target'] = merged_training_df.eval(config['target_eval'])
 
     print_avg_tagging_info(merged_training_df, config)
 
