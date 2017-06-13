@@ -32,7 +32,7 @@ from uncertainties.unumpy import (nominal_values as noms,
 
 from scripts.data_preparation import NSplit
 from scripts.calibration import PolynomialLogisticRegression
-from scripts.metrics import tagging_power_score, d2_score
+from scripts.metrics import tagging_power_score, d2_score, get_event_number
 
 
 def parse_args():
@@ -163,13 +163,6 @@ def print_avg_tagging_info(df, config):
                   100 * avg_tagging_power)))
 
 
-def get_event_number(config):
-    files = [config['filepath'] + f for f in config['files']]
-    df = read_root(files, key=config['pandas_kwargs']['key'],
-                   columns=['SigYield_sw', 'nCandidate'])
-    return df[df.nCandidate == 0].SigYield_sw.sum()
-
-
 def main():
     args = parse_args()
     config = parse_config(args.config_file)
@@ -192,7 +185,9 @@ def main():
     print_avg_tagging_info(merged_training_df, config)
 
     mva_features = config['mva_features']
-    efficiency = merged_training_df.SigYield_sw.sum() / get_event_number(config)
+    efficiency = (merged_training_df.groupby(['runNumber', 'eventNumber'])
+                  .head(1).SigYield_sw.sum()
+                  / get_event_number(config))
 
     # build BDT model and train the classifier nBootstrap x 3 times
     xgb_kwargs = config['xgb_kwargs']

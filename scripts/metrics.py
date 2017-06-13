@@ -3,6 +3,24 @@ from __future__ import division
 import numpy as np
 
 
+def get_event_number(config):
+    """ Compute the total number of events contained in the base tuples of
+    a given configuration.
+
+    Parameters
+    ----------
+    config : dictionary
+        expected to contain the keys
+            - 'filepath'
+            - 'files'
+            - 'pandas_kwargs'
+    """
+    files = [config['filepath'] + f for f in config['files']]
+    df = read_root(files, key=config['pandas_kwargs']['key'],
+                   columns=['SigYield_sw', 'nCandidate'])
+    return df[df.nCandidate == 0].SigYield_sw.sum()
+
+
 def d2_score(y_score, sample_weight=None):
     """ Compute <D^2> = <(1 - 2*omega)^2> where omega is either the per-event
     mistag estimate or the per event probability of the tag being correct.

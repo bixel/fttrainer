@@ -12,7 +12,7 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True  # noqa
 from root_pandas import read_root
 from xgboost import XGBClassifier
 
-from scripts.metrics import tagging_power_score
+from scripts.metrics import tagging_power_score, get_event_number
 
 
 def parse_args():
@@ -46,13 +46,6 @@ def parse_config(filename):
         return json.load(f)
 
 
-def get_event_number(config):
-    files = [config['filepath'] + f for f in config['files']]
-    df = read_root(files, key=config['pandas_kwargs']['key'],
-                   columns=['SigYield_sw', 'nCandidate'])
-    return df[df.nCandidate == 0].SigYield_sw.sum()
-
-
 def print_tp(df, args, config):
     sorting_feature = config['sorting_feature']
     grouped = df.groupby(['runNumber', 'eventNumber'], sort=False)
@@ -71,6 +64,7 @@ def print_tp(df, args, config):
 def add_predictions(args, config):
     print('Reading data...', end='', flush=True)
     df = read_root(args.input_file, stop=args.stop)
+    df['target'] = df.eval(config['target_eval'])
     print(' done.')
 
     xgb_kwargs = config.get('xgb_kwargs', {})
