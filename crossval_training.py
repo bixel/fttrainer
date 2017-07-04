@@ -123,11 +123,17 @@ def read_full_files(args, config):
         # depending on how many particles are found in each group, the index
         # needs to be reset. This seems to be a bug and might be fixed in 0.20
         # see pandas github issue #15297
-        if grouped[sorting_feature].count().max() > nMax:
-            indices = grouped[sorting_feature].nlargest(nMax).reset_index([0, 1]).index
-        else:
-            indices = grouped[sorting_feature].nlargest(nMax).index
-        max_df = selected_df.loc[indices]
+        try:
+            if grouped[sorting_feature].count().max() > nMax:
+                indices = grouped[sorting_feature].nlargest(nMax).reset_index([0, 1]).index
+            else:
+                indices = grouped[sorting_feature].nlargest(nMax).index
+        except e:
+            print(f'A pandas error has been ignored while reading {tqdm().n}th'
+                  'slice of the current input file: {e}')
+            continue
+
+        max_df = selected_df.loc[np.unique(indices.values)]
 
         if args.output_file:
             max_df.reset_index().to_root(args.output_file, mode='a')
