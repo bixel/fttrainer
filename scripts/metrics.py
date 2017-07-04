@@ -1,6 +1,7 @@
 from __future__ import division
 
 import numpy as np
+from root_pandas import read_root
 
 
 def get_event_number(config):
@@ -47,36 +48,44 @@ def d2_score(y_score, sample_weight=None):
     return np.sum(sample_weight * D2s) / np.sum(sample_weight)
 
 
-def tagging_power_score(y_score, efficiency=None, tot_event_number=None,
-                        sample_weight=None):
+def tagging_power_score(df, config, total_event_number=None,
+                        selected_event_number=None, efficiency=None,
+                        eta_column='etas'):
     """ Compute per event tagging power with selection efficiency
 
     Parameters
     ----------
-    y_score : array-like, shape=(n_samples,)
-        omega or p(correct) values
-
-    efficiency : float, optional, default: None
-        the selection efficiency
-
-    tot_event_number : float, optional, default: None
-        the total number of events (tagged and untagged)
-
-    sample_weight : array-like, shape=(n_samples,), optional, default: None
-        Weights. If set to None, all weights will be set to 1
+    df : pandas DataFrame
+        a pandas DataFrame, expected to contain the columns
+            - eta_column (default 'etas')
+            - 'target'
+            - a weight branch (defined in the config object)
+    config : dictionary
+        a configuration object expected to contain the keys
+            - all keys required for get_event_number
+            - 'sorting_feature' used to select a single tagging particle
+    eta_column : str, optional, default='etas'
+        name of the column used as mistag prediction
+    total_event_number : float, optional, default=None
+        provide the total number of events in the base dataset for df.
+        If this is none, the number will be extracted from the provided config
+        file
 
     Returns
     -------
     score : float
         tagging power
     """
-    if sample_weight is None:
-        sample_weight = np.ones_like(y_score)
-
-    if efficiency is not None and tot_event_number is None:
-        return efficiency * d2_score(y_score, sample_weight)
-    if tot_event_number is not None and efficiency is None:
-        return 1 / tot_event_number * np.sum(sample_weight
-                                             * (1 - 2 * y_score)**2)
-    else:
-        raise("Either efficiency or tot_event_number must be passed!")
+    if 'runNumber' not in df.index.names:
+        df.set_index(['runNumber', 'eventNumber', '__array_index'], inplace=True)
+    sorting_feature = config['sorting_feature']
+    grouped = df.groupby(['runNumber', 'eventNumber'], sort=False)
+    idxmax = grouped[sorting_feature].idxmax()
+    max_df = df.loc[idxmax]
+    efficiency = (efficiency
+                  or ((selected_event_number or max_df.SigYield_sw.sum())
+                      / (total_event_number or get_event_number(config))
+                      )
+                  )
+    return ((max_df.SigYield_sw * (1 - 2 * max_df[eta_column])**2).sum()
+            / max_df.SigYield_sw.sum() * efficiency)
