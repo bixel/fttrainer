@@ -39,9 +39,11 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config-file', type=str, default=None)
     parser.add_argument('-m', '--max-slices', type=int, default=None)
-    parser.add_argument('-p', '--plot', type=str, default=None,
+    parser.add_argument('-p', '--plot-dir', type=str, default=None,
                         help='Create a plot of the average ROC curve and the 1'
-                             'sigma area around the curve.')
+                             'sigma area around the curve in the given '
+                             'directory. The directory will be created if it '
+                             'does not exist.')
     parser.add_argument('-i', '--input-file', type=str, default=None,
                         help='Read in a preselected training tuple (created'
                         ' e.g. by this script) instead of applying the'
@@ -57,6 +59,9 @@ def parse_args():
                         be overwritten if it exists?""")
     parser.add_argument('--n-bootstrap', default=None, type=int,
                         help="""Number of cross-validation steps""")
+    parser.add_argument('--stop', default=None, type=int,
+                        help="""Stop when reading n events from preselected
+                        tuple""")
     return parser.parse_args()
 
 
@@ -177,15 +182,22 @@ def main():
               'Define one with `--config-file`.')
         sys.exit(1)
 
+    if args.plot_dir is not None:
+        if not os.path.isdir(args.plot_dir):
+            os.mkdir(args.plot_dir)
+
     # this will be the training dataframe
     if args.input_file:
-        merged_training_df = read_root(args.input_file)
+        merged_training_df = read_root(args.input_file, stop=args.stop)
         merged_training_df.set_index(['runNumber', 'eventNumber', '__array_index'], inplace=True)
     else:
         merged_training_df = read_full_files(args, config)
 
     # in every case, define a proper target
     merged_training_df['target'] = merged_training_df.eval(config['target_eval'])
+
+    # sort for performance
+    merged_training_df.sort_index(inplace=True)
 
     print_avg_tagging_info(merged_training_df, config)
 
@@ -214,9 +226,9 @@ def main():
         pbar.update(3)
 
         for i in range(3):
-            df1, df2, df3 = (df_sets[i % 3].copy(),
-                             df_sets[(i + 1) % 3].copy(),
-                             df_sets[(i + 2) % 3].copy())
+            df1, df2, df3 = (df_sets[i % 3],
+                             df_sets[(i + 1) % 3],
+                             df_sets[(i + 2) % 3])
             model = XGBClassifier(nthread=n_jobs, **xgb_kwargs)
             model.fit(df1[mva_features], df1.target,
                       sample_weight=df1.SigYield_sw)
@@ -224,7 +236,6 @@ def main():
                                  model.predict_proba(df1[mva_features])[:, 1])
 
             probas = model.predict_proba(df2[mva_features])[:, 1]
-            df2['probas'] = probas
             roc2 = roc_auc_score(df2.target, probas)
             merged_training_df.loc[df2.index, 'probas'] = probas
 
@@ -232,13 +243,12 @@ def main():
             calibrator = PolynomialLogisticRegression(power=3,
                                                       solver='lbfgs',
                                                       n_jobs=n_jobs)
-            calibrator.fit(df2.probas.values.reshape(-1, 1), df2.target,
+            calibrator.fit(probas.reshape(-1, 1), df2.target,
                            sample_weight=df2.SigYield_sw)
             bootstrap_calibration_params.append(calibrator.lr.coef_)
 
             probas = model.predict_proba(df3[mva_features])[:, 1]
             calib_probas = calibrator.predict_proba(probas)[:, 1]
-            df3['calib_probas'] = calib_probas
             roc3 = roc_auc_score(df3.target, calib_probas)
             merged_training_df.loc[df3.index, 'calib_probas'] = calib_probas
 
@@ -248,8 +258,8 @@ def main():
             score = tagging_power_score(df3, config,
                                         total_event_number=total_event_number,
                                         selected_event_number=selected_event_number,
-                                        eta_column='calib_probas')
-            if args.plot is not None:
+                                        etas=calib_probas)
+            if args.plot_dir is not None:
                 fpr, tpr = roc_curve(df3.target, probas,
                                      sample_weight=df3.SigYield_sw)[:2]
                 bootstrap_roc_curves.append([fpr, tpr])
@@ -261,7 +271,7 @@ def main():
     pbar.close()
 
     # plot roc curve on request
-    if args.plot is not None:
+    if args.plot_dir is not None:
         print('Plotting ROC curves...', end=' ')
         curve_points = np.array(bootstrap_roc_curves)
 
@@ -290,9 +300,7 @@ def main():
         plt.legend(loc='best')
         plt.xlabel('false positive rate')
         plt.ylabel('true positive rate')
-        filename = (args.plot
-                    if args.plot.endswith('.pdf')
-                    else args.plot + '.pdf')
+        filename = os.path.join(args.plot_dir, 'ROC-curves.pdf')
         plt.savefig(filename, bbox_inches='tight')
         print('done.')
 

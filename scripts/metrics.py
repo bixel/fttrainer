@@ -50,22 +50,22 @@ def d2_score(y_score, sample_weight=None):
 
 def tagging_power_score(df, config, total_event_number=None,
                         selected_event_number=None, efficiency=None,
-                        eta_column='etas'):
+                        etas='etas'):
     """ Compute per event tagging power with selection efficiency
 
     Parameters
     ----------
     df : pandas DataFrame
         a pandas DataFrame, expected to contain the columns
-            - eta_column (default 'etas')
+            - eta_column (default 'etas', optional, see etas)
             - 'target'
             - a weight branch (defined in the config object)
     config : dictionary
         a configuration object expected to contain the keys
             - all keys required for get_event_number
             - 'sorting_feature' used to select a single tagging particle
-    eta_column : str, optional, default='etas'
-        name of the column used as mistag prediction
+    etas : str or array, optional, default='etas'
+        name of the column used as mistag prediction or list of eta values
     total_event_number : float, optional, default=None
         provide the total number of events in the base dataset for df.
         If this is none, the number will be extracted from the provided config
@@ -78,6 +78,10 @@ def tagging_power_score(df, config, total_event_number=None,
     """
     if 'runNumber' not in df.index.names:
         df.set_index(['runNumber', 'eventNumber', '__array_index'], inplace=True)
+
+    if type(etas) == str:
+        etas = df[etas]
+
     sorting_feature = config['sorting_feature']
     grouped = df.groupby(['runNumber', 'eventNumber'], sort=False)
     idxmax = grouped[sorting_feature].idxmax()
@@ -87,5 +91,5 @@ def tagging_power_score(df, config, total_event_number=None,
                       / (total_event_number or get_event_number(config))
                       )
                   )
-    return ((max_df.SigYield_sw * (1 - 2 * max_df[eta_column])**2).sum()
+    return ((max_df.SigYield_sw * (1 - 2 * etas)**2).sum()
             / max_df.SigYield_sw.sum() * efficiency)
