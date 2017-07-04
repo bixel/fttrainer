@@ -8,7 +8,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_curve, roc_auc_score
 
 import ROOT
 # disable cmd line parsing before other ROOT deps are loaded
@@ -174,8 +174,7 @@ def main():
     # this will be the training dataframe
     if args.input_file:
         merged_training_df = read_root(args.input_file)
-        merged_training_df.set_index(['runNumber', 'eventNumber',
-                                      '__array_index'], inplace=True)
+        merged_training_df.set_index(['runNumber', 'eventNumber', '__array_index'], inplace=True)
     else:
         merged_training_df = read_full_files(args, config)
 
@@ -185,17 +184,19 @@ def main():
     print_avg_tagging_info(merged_training_df, config)
 
     mva_features = config['mva_features']
-    efficiency = (merged_training_df.groupby(['runNumber', 'eventNumber'])
-                  .head(1).SigYield_sw.sum()
-                  / get_event_number(config))
+    total_event_number = get_event_number(config)
+    selected_event_number = (merged_training_df.groupby(
+        ['runNumber', 'eventNumber']).SigYield_sw.head(1).sum())
 
     # build BDT model and train the classifier nBootstrap x 3 times
     xgb_kwargs = config['xgb_kwargs']
     n_jobs = config['n_jobs']
 
+    bootstrap_roc_aucs = []
     bootstrap_scores = []
     bootstrap_d2s = []
     bootstrap_roc_curves = []
+    bootstrap_calibration_params = []
     nBootstrap = args.n_bootstrap or config['n_bootstrap']
     print('Starting bootstrapping.')
     pbar = tqdm(total=nBootstrap * 6)
@@ -213,9 +214,12 @@ def main():
             model = XGBClassifier(nthread=n_jobs, **xgb_kwargs)
             model.fit(df1[mva_features], df1.target,
                       sample_weight=df1.SigYield_sw)
+            roc1 = roc_auc_score(df1.target,
+                                 model.predict_proba(df1[mva_features])[:, 1])
 
             probas = model.predict_proba(df2[mva_features])[:, 1]
             df2['probas'] = probas
+            roc2 = roc_auc_score(df2.target, probas)
             merged_training_df.loc[df2.index, 'probas'] = probas
 
             # calibrate
@@ -223,17 +227,21 @@ def main():
                                                       solver='lbfgs',
                                                       n_jobs=n_jobs)
             calibrator.fit(df2.probas.values.reshape(-1, 1), df2.target)
+            bootstrap_calibration_params.append(calibrator.lr.coef_)
 
             probas = model.predict_proba(df3[mva_features])[:, 1]
             calib_probas = calibrator.predict_proba(probas)[:, 1]
             df3['calib_probas'] = calib_probas
+            roc3 = roc_auc_score(df3.target, calib_probas)
             merged_training_df.loc[df3.index, 'calib_probas'] = calib_probas
 
             max_pt_particles = df3.groupby(['runNumber', 'eventNumber']).head(1)
 
-            score = tagging_power_score(max_pt_particles.calib_probas,
-                                        efficiency=efficiency,
-                                        sample_weight=max_pt_particles.SigYield_sw)
+            bootstrap_roc_aucs.append([roc1, roc2, roc3])
+            score = tagging_power_score(df3, config,
+                                        total_event_number=total_event_number,
+                                        selected_event_number=selected_event_number,
+                                        eta_column='calib_probas')
             if args.plot is not None:
                 fpr, tpr = roc_curve(df3.target, probas,
                                      sample_weight=df3.SigYield_sw)[:2]
@@ -281,15 +289,19 @@ def main():
         plt.savefig(filename, bbox_inches='tight')
         print('done.')
 
-    print(dedent("""\
-          Final {}-fold bootstrap performance
-             D2 = {:<6}%
-          ε_eff = {:<6}%""")
-          .format(nBootstrap,
-                  100 * ufloat(np.mean(bootstrap_d2s),
-                               np.std(bootstrap_d2s)),
-                  100 * ufloat(np.mean(noms(bootstrap_scores)),
-                               np.std(noms(bootstrap_scores)))))
+    d2 = 100 * ufloat(np.mean(bootstrap_d2s), np.std(bootstrap_d2s))
+    eff = 100 * ufloat(np.mean(noms(bootstrap_scores)),
+                       np.std(noms(bootstrap_scores)))
+    print(dedent(f"""
+          CalibrationParams:
+          {np.array(bootstrap_calibration_params).mean(axis=0)}
+          {np.array(bootstrap_calibration_params).std(axis=0)}
+          ROC AUCs:
+          {np.array(bootstrap_roc_aucs).mean(axis=0)}
+          {np.array(bootstrap_roc_aucs).std(axis=0)}
+          Final {nBootstrap}-fold bootstrap performance
+             D2 = {d2}%
+          ε_eff = {eff}%"""))
 
 
 if __name__ == '__main__':
