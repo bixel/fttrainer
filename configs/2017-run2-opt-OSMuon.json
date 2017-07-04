@@ -1,7 +1,7 @@
 {
     "filepath": "/fhgfs/groups/e5/lhcb/analysis/FT/NTuples/tmp_os_opt_move_to_OSOptSum17/",
     "files": [
-        "DTT_2016_Reco16Strip26_20170529_jwishahi_TupleB_sweights.root"
+        "DTT_2016_Reco16Strip28_20170628_kheinicke_sweights.root"
     ],
     "target_eval": "(B_ID > 0) == (B_OSMuonDev_TagPartsFeature_ID > 0)",
     "pandas_kwargs": {
@@ -46,12 +46,12 @@
         "nCandidate == 0"
     ],
     "sorting_feature": "B_OSMuonDev_TagPartsFeature_PT",
-    "particles_per_event": 3,
+    "particles_per_event": 5,
     "n_bootstrap": 10,
     "xgb_kwargs": {
-        "max_depth": 3,
+        "max_depth": 4,
         "learning_rate": 0.01,
-        "n_estimators": 300
+        "n_estimators": 200
     },
     "n_jobs": 12
 }

@@ -1,7 +1,7 @@
 {
     "filepath": "/fhgfs/groups/e5/lhcb/analysis/FT/NTuples/tmp_os_opt_move_to_OSOptSum17/",
     "files": [
-        "DTT_2016_Reco16Strip26_20170529_jwishahi_TupleB_sweights.root"
+        "DTT_2016_Reco16Strip28_20170628_kheinicke_sweights.root"
     ],
     "target_eval": "(B_ID > 0) == (B_OSMuonDev_TagPartsFeature_ID > 0)",
     "pandas_kwargs": {
