@@ -232,7 +232,8 @@ def main():
             calibrator = PolynomialLogisticRegression(power=3,
                                                       solver='lbfgs',
                                                       n_jobs=n_jobs)
-            calibrator.fit(df2.probas.values.reshape(-1, 1), df2.target)
+            calibrator.fit(df2.probas.values.reshape(-1, 1), df2.target,
+                           sample_weight=df2.SigYield_sw)
             bootstrap_calibration_params.append(calibrator.lr.coef_)
 
             probas = model.predict_proba(df3[mva_features])[:, 1]
