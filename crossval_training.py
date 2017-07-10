@@ -5,6 +5,16 @@ from __future__ import print_function, division
 
 import os
 
+from xgboost import XGBClassifier
+
+# import and configure matplotlib to solve script issues when using anaconda
+# see https://github.com/ContinuumIO/anaconda-issues/issues/1215
+import matplotlib as mpl
+mpl.use('Agg')
+
+import matplotlib.pyplot as plt
+plt.ioff()
+
 import numpy as np
 import pandas as pd
 
@@ -14,10 +24,6 @@ import ROOT
 # disable cmd line parsing before other ROOT deps are loaded
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 from root_pandas import read_root
-
-from xgboost import XGBClassifier
-
-import matplotlib.pyplot as plt
 
 import json
 import argparse
@@ -29,6 +35,8 @@ from textwrap import dedent
 from uncertainties import ufloat
 from uncertainties.unumpy import (nominal_values as noms,
                                   std_devs as stds)
+
+import pickle
 
 from scripts.data_preparation import NSplit
 from scripts.calibration import PolynomialLogisticRegression
@@ -190,6 +198,11 @@ def main():
     if args.input_file:
         merged_training_df = read_root(args.input_file, stop=args.stop)
         merged_training_df.set_index(['runNumber', 'eventNumber', '__array_index'], inplace=True)
+        # duplicates may have ended up in the root file
+        len_before = len(merged_training_df)
+        merged_training_df.drop_duplicates(inplace=True)
+        print(f'Dropped {(1 - len(merged_training_df) / len_before) * 100:.5f}%'
+              ' duplicated entries in dataframe')
     else:
         merged_training_df = read_full_files(args, config)
 
@@ -237,7 +250,6 @@ def main():
 
             probas = model.predict_proba(df2[mva_features])[:, 1]
             roc2 = roc_auc_score(df2.target, probas)
-            merged_training_df.loc[df2.index, 'probas'] = probas
 
             # calibrate
             calibrator = PolynomialLogisticRegression(power=3,
@@ -250,7 +262,6 @@ def main():
             probas = model.predict_proba(df3[mva_features])[:, 1]
             calib_probas = calibrator.predict_proba(probas)[:, 1]
             roc3 = roc_auc_score(df3.target, calib_probas)
-            merged_training_df.loc[df3.index, 'calib_probas'] = calib_probas
 
             max_pt_particles = df3.groupby(['runNumber', 'eventNumber']).head(1)
 
@@ -269,6 +280,14 @@ def main():
                                           sample_weight=df3.SigYield_sw))
             pbar.update(1)
     pbar.close()
+
+    # pickle bootstrap results
+    with open('crossval_training_dump.pkl', 'bw') as f:
+        pickle.dump(dict(
+            roc_curves=bootstrap_roc_curves,
+            tagging_power_scores=bootstrap_scores,
+            d2_scores=bootstrap_d2s,
+            ), f)
 
     # plot roc curve on request
     if args.plot_dir is not None:
