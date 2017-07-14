@@ -111,13 +111,15 @@ def read_full_files(args, config):
 
     merged_training_df = None
 
+    index_cols = config['index_features']
+    event_cols = config['unique_event_features']
+
     # loop over tuple and fill training variables
     for df in tqdm(
-            islice(read_root(files, flatten=True, **kwargs), maxslices),
+            islice(read_root(files, **kwargs), maxslices),
             total=total):
         # set a proper index
-        df.set_index(['runNumber', 'eventNumber', '__array_index'],
-                     inplace=True, drop=True)
+        df.set_index(index_cols, inplace=True, drop=True)
 
         # apply selections
         selected_df = df
@@ -131,7 +133,7 @@ def read_full_files(args, config):
         # select n max pt particles
         sorting_feature = config['sorting_feature']
         nMax = config.get('particles_per_event', 1)
-        grouped = selected_df.groupby(['runNumber', 'eventNumber'], sort=False)
+        grouped = selected_df.groupby(event_cols, sort=False)
         # calculate indices of the top n rows in each group;
         # depending on how many particles are found in each group, the index
         # needs to be reset. This seems to be a bug and might be fixed in 0.20
@@ -141,7 +143,7 @@ def read_full_files(args, config):
                 indices = grouped[sorting_feature].nlargest(nMax).reset_index([0, 1]).index
             else:
                 indices = grouped[sorting_feature].nlargest(nMax).index
-        except e:
+        except ValueError:
             print(f'A pandas error has been ignored while reading {tqdm().n}th'
                   'slice of the current input file: {e}')
             continue
@@ -158,10 +160,10 @@ def read_full_files(args, config):
 
 
 def print_avg_tagging_info(df, config):
-    df = df.groupby(['runNumber', 'eventNumber']).first()
+    event_cols = config['unique_event_features']
+    df = df.groupby(event_cols).first()
     total_event_number = get_event_number(config)
-    event_number = df.groupby(
-        ['runNumber', 'eventNumber']).SigYield_sw.first().sum()
+    event_number = df.groupby(event_cols).SigYield_sw.first().sum()
     event_number = ufloat(event_number, np.sqrt(event_number))
     efficiency = event_number / total_event_number
     wrong_tag_number = np.sum(df.SigYield_sw * ~df.target)
@@ -194,10 +196,13 @@ def main():
         if not os.path.isdir(args.plot_dir):
             os.mkdir(args.plot_dir)
 
+    index_cols = config['index_features']
+    event_cols = config['unique_event_features']
+
     # this will be the training dataframe
     if args.input_file:
         merged_training_df = read_root(args.input_file, stop=args.stop)
-        merged_training_df.set_index(['runNumber', 'eventNumber', '__array_index'], inplace=True)
+        merged_training_df.set_index(index_cols, inplace=True)
         # duplicates may have ended up in the root file
         len_before = len(merged_training_df)
         merged_training_df.drop_duplicates(inplace=True)
@@ -217,7 +222,7 @@ def main():
     mva_features = config['mva_features']
     total_event_number = get_event_number(config)
     selected_event_number = (merged_training_df.groupby(
-        ['runNumber', 'eventNumber']).SigYield_sw.head(1).sum())
+        event_cols).SigYield_sw.head(1).sum())
 
     # build BDT model and train the classifier nBootstrap x 3 times
     xgb_kwargs = config['xgb_kwargs']
@@ -263,7 +268,7 @@ def main():
             calib_probas = calibrator.predict_proba(probas)[:, 1]
             roc3 = roc_auc_score(df3.target, calib_probas)
 
-            max_pt_particles = df3.groupby(['runNumber', 'eventNumber']).head(1)
+            max_pt_particles = df3.groupby(event_cols).head(1)
 
             bootstrap_roc_aucs.append([roc1, roc2, roc3])
             score = tagging_power_score(df3, config,
