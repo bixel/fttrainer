@@ -228,6 +228,8 @@ def main():
     xgb_kwargs = config['xgb_kwargs']
     n_jobs = config['n_jobs']
 
+    sorting_feature = config['sorting_feature']
+
     bootstrap_roc_aucs = []
     bootstrap_scores = []
     bootstrap_d2s = []
@@ -268,21 +270,28 @@ def main():
             calib_probas = calibrator.predict_proba(probas)[:, 1]
             roc3 = roc_auc_score(df3.target, calib_probas)
 
-            max_pt_particles = df3.groupby(event_cols).head(1)
+            # concatenating here, since df3 is a view on the main df and will
+            # throw warnings when adding any columns to it
+            df3 = pd.concat([
+                    df3.reset_index(),
+                    pd.Series(calib_probas, name='calib_probas'),
+                ], axis=1)
+            best_indices = df3.groupby(event_cols)[sorting_feature].idxmax()
+            best_particles = df3.loc[best_indices]
 
             bootstrap_roc_aucs.append([roc1, roc2, roc3])
-            score = tagging_power_score(df3, config,
-                                        total_event_number=total_event_number,
-                                        selected_event_number=selected_event_number,
-                                        etas=calib_probas)
+            score = tagging_power_score(best_particles, config,
+                efficiency=selected_event_number/total_event_number,
+                etas='calib_probas')
             if args.plot_dir is not None:
-                fpr, tpr = roc_curve(df3.target, probas,
-                                     sample_weight=df3.SigYield_sw)[:2]
+                fpr, tpr = roc_curve(best_particles.target,
+                    best_particles.calib_probas,
+                    sample_weight=best_particles.SigYield_sw)[:2]
                 bootstrap_roc_curves.append([fpr, tpr])
 
             bootstrap_scores.append(score)
-            bootstrap_d2s.append(d2_score(calib_probas,
-                                          sample_weight=df3.SigYield_sw))
+            bootstrap_d2s.append(d2_score(best_particles.calib_probas,
+                    sample_weight=best_particles.SigYield_sw))
             pbar.update(1)
     pbar.close()
 
