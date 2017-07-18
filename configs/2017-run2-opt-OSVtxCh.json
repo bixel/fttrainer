@@ -1,0 +1,54 @@
+{
+    "filepath": "/fhgfs/groups/e5/lhcb/analysis/FT/NTuples/tmp_os_opt_move_to_OSOptSum17/",
+    "files": [
+        "DTT_2016_Reco16Strip28_20170628_kheinicke_sweights.root"
+    ],
+    "target_eval": "(B_ID > 0) == (B_OSMuonDev_TagPartsFeature_ID > 0)",
+    "pandas_kwargs": {
+        "key": "Bu2JpsiKDetached",
+        "columns": [
+            "B_OSVtxChDev*",
+            "B_ID",
+            "B_PT",
+            "runNumber",
+            "eventNumber",
+            "SigYield_sw",
+            "nCandidate"
+        ],
+        "chunksize": 5000
+    },
+    "unique_event_features": [
+      "runNumber",
+      "eventNumber"
+    ],
+    "index_features": [
+      "runNumber",
+      "eventNumber"
+    ],
+    "mva_features": [
+        "B_OSVtxChDev_MVAFeature_nTracks",
+        "B_OSVtxChDev_MVAFeature_nPVs",
+        "B_OSVtxChDev_MVAFeature_logBpt",
+        "B_OSVtxChDev_MVAFeature_nTrackInVtx",
+        "B_OSVtxChDev_MVAFeature_logVtxPt",
+        "B_OSVtxChDev_MVAFeature_logVtxIPsig",
+        "B_OSVtxChDev_MVAFeature_absVtxCh",
+        "B_OSVtxChDev_MVAFeature_logVtxP",
+        "B_OSVtxChDev_MVAFeature_logVtxM",
+        "B_OSVtxChDev_MVAFeature_VtxDPhi",
+        "B_OSVtxChDev_MVAFeature_logVtxTau",
+        "B_OSVtxChDev_MVAFeature_VtxDoca"
+    ],
+    "selections": [
+        "nCandidate == 0"
+    ],
+    "sorting_feature": "B_OSVtxChDev_MVAFeature_logVtxP",
+    "particles_per_event": 5,
+    "n_bootstrap": 10,
+    "xgb_kwargs": {
+        "max_depth": 4,
+        "learning_rate": 0.01,
+        "n_estimators": 200
+    },
+    "n_jobs": 12
+}

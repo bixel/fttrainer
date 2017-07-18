@@ -41,5 +41,5 @@
         "learning_rate": 0.01,
         "n_estimators": 300
     },
-    "n_jobs": 24
+    "n_jobs": 12
 }

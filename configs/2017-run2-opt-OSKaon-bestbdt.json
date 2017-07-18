@@ -63,7 +63,7 @@
         "abs(B_OSMuonDev_TagPartsFeature_ID) != 13",
         "nCandidate == 0"
     ],
-    "sorting_feature": "B_OSMuonDev_TagPartsFeature_PT",
+    "sorting_feature": "calib_probas",
     "particles_per_event": 3,
     "n_bootstrap": 10,
     "xgb_kwargs": {
