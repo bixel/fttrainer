@@ -6,6 +6,8 @@ from __future__ import division, print_function
 import argparse
 import json
 
+import numpy as np
+
 import ROOT
 # disable cmd line parsing before other ROOT deps are loaded
 ROOT.PyConfig.IgnoreCommandLineOptions = True  # noqa
@@ -36,6 +38,8 @@ def parse_args():
                         help="""The read_root stop argument.""")
     parser.add_argument('--verbose', default=False, action='store_true',
                         help="""Don't be silent while training.""")
+    parser.add_argument('--additional-selection', default='', type=str,
+                        help="""Define an additional selection string""")
     return parser.parse_args()
 
 
@@ -47,24 +51,18 @@ def parse_config(filename):
 
 
 def print_tp(df, args, config):
-    sorting_feature = config['sorting_feature']
-    grouped = df.groupby(['runNumber', 'eventNumber'], sort=False)
-    print('Sorting out best particle indices...', end='', flush=True)
-    indices = grouped[sorting_feature].idxmax()
-    print(' done.')
-
-    print('Sorting out best particles...', end='', flush=True)
-    probas = df.loc[indices, ['probas', sorting_feature]]
-    print('{:.2f}%'.format(
-        100 * tagging_power_score(
-            bestParticles.probas, tot_event_number=get_event_number(config),
-            sample_weight=bestParticles.SigYield_sw)))
+    print('{:.2f}%'.format(100 * tagging_power_score(df, config, etas='probas')))
 
 
 def add_predictions(args, config):
     print('Reading data...', end='', flush=True)
     df = read_root(args.input_file, stop=args.stop)
     df['target'] = df.eval(config['target_eval'])
+    for col in df.columns:
+        if df[col].dtype == np.uint64:
+            df[col] = df[col].astype(np.int64)
+    if args.additional_selection:
+        df.query(args.additional_selection, inplace=True)
     print(' done.')
 
     xgb_kwargs = config.get('xgb_kwargs', {})
