@@ -1,0 +1,76 @@
+{
+    "filepath": "/fhgfs/groups/e5/lhcb/analysis/FT/NTuples/tmp_os_opt_move_to_OSOptSum17/",
+    "files": [
+        "DTT_2016_Reco16Strip28_20170628_kheinicke_sweights.root"
+    ],
+    "target_eval": "(B_ID > 0) == (B_OSMuonDev_TagPartsFeature_ID > 0)",
+    "pandas_kwargs": {
+        "key": "Bu2JpsiKDetached",
+        "columns": [
+            "B_OSMuonDev_TagPartsFeature*",
+            "B_ID",
+            "B_PT",
+            "runNumber",
+            "eventNumber",
+            "SigYield_sw",
+            "nCandidate"
+        ],
+        "chunksize": 10000,
+        "flatten": true
+    },
+    "unique_event_features": [
+      "runNumber",
+      "eventNumber"
+    ],
+    "index_features": [
+      "runNumber",
+      "eventNumber",
+      "__array_index"
+    ],
+    "mva_features": [
+        "B_OSMuonDev_TagPartsFeature_countTracks",
+        "B_OSMuonDev_TagPartsFeature_P",
+        "B_OSMuonDev_TagPartsFeature_PT",
+        "B_OSMuonDev_TagPartsFeature_Signal_PT",
+        "B_OSMuonDev_TagPartsFeature_IPSig",
+        "B_OSMuonDev_TagPartsFeature_TRCHI2DOF",
+        "B_OSMuonDev_TagPartsFeature_eOverP",
+        "B_OSMuonDev_TagPartsFeature_TRGHP",
+        "B_OSMuonDev_TagPartsFeature_IPPUSig"
+    ],
+    "selections": [
+        "B_OSMuonDev_TagPartsFeature_PP_InAccHcal == 1",
+        "B_OSMuonDev_TagPartsFeature_TRTYPE == 3",
+        "B_OSMuonDev_TagPartsFeature_TRCHI2DOF < 3",
+        "B_OSMuonDev_TagPartsFeature_TRGHP < 0.280",
+        "B_OSMuonDev_TagPartsFeature_MuonPIDIsMuon == 0",
+        "B_OSMuonDev_TagPartsFeature_PROBNNpi_MC15TuneV1 < 0.990",
+        "B_OSMuonDev_TagPartsFeature_PROBNNp_MC15TuneV1 < 0.833",
+        "B_OSMuonDev_TagPartsFeature_PROBNNk_MC15TuneV1 < 0.633",
+        "B_OSMuonDev_TagPartsFeature_PROBNNe_MC15TuneV1 > 0.128",
+        "B_OSMuonDev_TagPartsFeature_PROBNNe_MC15TuneV1 - B_OSMuonDev_TagPartsFeature_PROBNNpi_MC15TuneV1 + 2 > 0.106",
+        "B_OSMuonDev_TagPartsFeature_PROBNNmu_MC15TuneV1 < 0.142",
+        "B_OSMuonDev_TagPartsFeature_PIDe > 4.710",
+        "B_OSMuonDev_TagPartsFeature_PT/1000 > 1.240",
+        "B_OSMuonDev_TagPartsFeature_P/1000 > 5.349",
+        "B_OSMuonDev_TagPartsFeature_IPErr != 0",
+        "B_OSMuonDev_TagPartsFeature_IPSig > 1.450",
+        "B_OSMuonDev_TagPartsFeature_IPPUSig > 9.218",
+        "B_OSMuonDev_TagPartsFeature_IsSignalDaughter == 0",
+        "B_OSMuonDev_TagPartsFeature_minPhiDistance > 0.00771",
+        "B_OSMuonDev_TagPartsFeature_eOverP < 2",
+        "B_OSMuonDev_TagPartsFeature_eOverP > 0.85",
+        "B_OSMuonDev_TagPartsFeature_PP_VeloCharge > 0",
+        "B_OSMuonDev_TagPartsFeature_PP_VeloCharge < 1.4",
+        "nCandidate == 0"
+    ],
+    "sorting_feature": "B_OSMuonDev_TagPartsFeature_PT",
+    "particles_per_event": 5,
+    "n_bootstrap": 10,
+    "xgb_kwargs": {
+        "max_depth": 3,
+        "learning_rate": 0.01,
+        "n_estimators": 300
+    },
+    "n_jobs": 12
+}
